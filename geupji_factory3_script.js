@@ -320,6 +320,7 @@
         init: function() {
             // ==========================================
             // 🔒 간이 비밀번호 체크
+            // (모두가 편하게 쓰려면 이 부분을 지우셔도 됩니다)
             // ==========================================
             const input = prompt("접속 비밀번호를 입력하세요:");
             if (input !== "mk1324") {
@@ -429,11 +430,10 @@
                 rawPayloadData.push({ item_type: 'side_wan_1', col_id: 'D', value: extractVal(document.getElementById('sideWanD')), memo: "" });
                 rawPayloadData.push({ item_type: 'side_geup', col_id: 'A', value: extractVal(document.getElementById('sideGeupA')), memo: "" });
                 rawPayloadData.push({ item_type: 'side_geup', col_id: 'D', value: extractVal(document.getElementById('sideGeupD')), memo: "" });
-                
-                // 수동 입력된 사용량 총계 저장
                 rawPayloadData.push({ item_type: 'stat_total_usage', col_id: 'H', value: extractVal(document.getElementById('statTotalUsage')), memo: "" });
 
                 try {
+                    // 1. 기존 데이터 초기화 (DELETE 권한 필수)
                     const { error: deleteError } = await supabase
                         .from('factory3_geupji_real')
                         .delete()
@@ -444,25 +444,38 @@
                         return;
                     }
 
-                    const finalInsertData = rawPayloadData.map(item => ({
-                        date: state.currentDate,
-                        item_type: item.item_type,
-                        col_id: item.col_id,
-                        value: parseInt(item.value, 10) || 0, 
-                        memo: item.memo || ""
-                    }));
+                    // 2. 0인 데이터 걸러내기 (필터링 로직 추가)
+                    const finalInsertData = rawPayloadData
+                        .filter(item => {
+                            const val = parseInt(item.value, 10) || 0;
+                            const hasMemo = (item.memo && item.memo.trim() !== "");
+                            // 숫자 값이 0이 아니거나, 메모가 작성된 경우에만 살려둠
+                            return val !== 0 || hasMemo;
+                        })
+                        .map(item => ({
+                            date: state.currentDate,
+                            item_type: item.item_type,
+                            col_id: item.col_id,
+                            value: parseInt(item.value, 10) || 0, 
+                            memo: item.memo || ""
+                        }));
 
-                    const { error: insertError } = await supabase
-                        .from('factory3_geupji_real')
-                        .insert(finalInsertData);
+                    // 3. 살려둔 데이터가 있을 때만 DB에 삽입 (모두 0이라 지워졌을 때 에러 방지)
+                    if (finalInsertData.length > 0) {
+                        const { error: insertError } = await supabase
+                            .from('factory3_geupji_real')
+                            .insert(finalInsertData);
 
-                    if (insertError) {
-                        alert('저장 실패: ' + insertError.message);
-                    } else {
-                        alert('저장 완료되었습니다.');
-                        toggleEditMode(); 
-                        loadData(state.currentDate); 
+                        if (insertError) {
+                            alert('저장 실패: ' + insertError.message);
+                            return; // 에러 나면 여기서 중단
+                        }
                     }
+
+                    // 4. 저장 성공 처리
+                    alert('저장 완료되었습니다.');
+                    toggleEditMode(); 
+                    loadData(state.currentDate); 
                 } catch (err) {
                     alert('네트워크 오류가 발생했습니다: ' + err.message);
                 }
