@@ -6,9 +6,13 @@ body {
     padding: 20px;
     background-color: #f5f5f7;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    box-sizing: border-box;
+}
+*, *:before, *:after {
+    box-sizing: inherit;
 }
 
-.gf3-wrapper { display: flex; flex-direction: column; gap: 16px; padding: 10px 0; }
+.gf3-wrapper { display: flex; flex-direction: column; gap: 16px; padding: 10px 0; width: 100%; }
 
 .gf3-header { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 12px 20px; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
 .gf3-main-title { font-size: 20px; font-weight: 700; color: #1d1d1f; letter-spacing: -0.5px; }
@@ -20,7 +24,6 @@ body {
 .gf3-icon-btn span { font-size: 18px; }
 .gf3-cal-wrap { position: relative; margin: 0 12px; }
 .gf3-date-text { font-size: 15px; font-weight: 700; color: #1d1d1f; min-width: 140px; text-align: center; display: inline-block; cursor: pointer; }
-.gf3-cal-container { position: absolute; top: 100%; right: 0; z-index: 9999; }
 
 .gf3-action-btn { border: none; padding: 6px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
 .today-btn { background: #e8f4fd; color: #007AFF; }
@@ -31,10 +34,10 @@ body {
 .save-btn:not(:disabled):hover { opacity: 0.85; }
 .edit-btn:disabled, .save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.gf3-layout { display: flex; align-items: flex-start; gap: 16px; }
+.gf3-layout { display: flex; align-items: flex-start; gap: 16px; width: 100%; }
 
-.gf3-main-table-box { flex-grow: 1; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); border: 1px solid #e5e5ea; }
-.gf3-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.gf3-main-table-box { flex-grow: 1; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); border: 1px solid #e5e5ea; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.gf3-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 750px; }
 .gf3-th, .gf3-td { border: 1px solid #d2d2d7; height: 38px; vertical-align: middle; padding: 0; }
 .gf3-th { background: #f5f5f7; font-size: 13px; font-weight: 600; color: #1d1d1f; text-align: center; }
 .row-title { background: #fafafc; color: #1d1d1f; }
@@ -78,3 +81,54 @@ body {
 .gf3-box-header { font-size: 14px; font-weight: 700; color: #1d1d1f; text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f2f2f7; }
 .mini-table th { font-size: 12px; height: 30px; }
 .mini-table td { height: 34px; }
+
+/* ==========================================
+   📱 모바일 반응형 (Media Queries)
+   ========================================== */
+@media (max-width: 900px) {
+    body {
+        padding: 10px; /* 여백 줄임 */
+    }
+    .gf3-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .gf3-main-title {
+        text-align: center;
+    }
+    .gf3-controls {
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+    .gf3-nav-group {
+        flex: 1;
+        justify-content: center;
+    }
+    
+    /* 레이아웃을 세로(위아래) 배치로 변경 */
+    .gf3-layout {
+        flex-direction: column; 
+    }
+    
+    /* 모바일에서는 사이드 패널이 가로를 꽉 채우게 */
+    .gf3-side-panel {
+        width: 100%;
+        flex-direction: row; 
+    }
+    .gf3-box {
+        flex: 1; /* 나란히 배치 */
+    }
+    
+    /* iOS 등 모바일에서 입력창 터치 시 자동 확대 방지 (최소 16px 유지) */
+    .gf3-input {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 500px) {
+    /* 아주 작은 화면에서는 사이드 패널도 위아래로 쌓음 */
+    .gf3-side-panel {
+        flex-direction: column;
+    }
+}
