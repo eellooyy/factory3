@@ -347,13 +347,13 @@
             state.currentDate = utils.addDays(today, -1);
             elements.dateText.innerText = utils.formatKoDate(state.currentDate);
 
-            // 💡 캘린더 초기화 옵션 수정됨 (가운데 정렬)
+            // 💡 캘린더 초기화 옵션 (가운데 정렬)
             state.fp = flatpickr("#gf3Flatpickr", {
                 locale: "ko", 
                 dateFormat: "Y-m-d", 
                 defaultDate: state.currentDate,
-                positionElement: elements.dateText, // 날짜 텍스트를 기준으로 위치 잡기
-                position: "auto center", // 기준 요소의 가운데 하단(공간부족 시 상단)
+                positionElement: elements.dateText, 
+                position: "auto center", 
                 onChange: (dates, str) => {
                     state.currentDate = str;
                     elements.dateText.innerText = utils.formatKoDate(str);
@@ -433,10 +433,21 @@
                 rawPayloadData.push({ item_type: 'side_geup', col_id: 'A', value: extractVal(document.getElementById('sideGeupA')), memo: "" });
                 rawPayloadData.push({ item_type: 'side_geup', col_id: 'D', value: extractVal(document.getElementById('sideGeupD')), memo: "" });
                 
-                // 수동 입력된 사용량 총계 저장
                 rawPayloadData.push({ item_type: 'stat_total_usage', col_id: 'H', value: extractVal(document.getElementById('statTotalUsage')), memo: "" });
 
+                // 💡 0이거나 빈칸인 데이터 걸러내기 (단, 메모가 있는 항목은 남김)
+                const finalInsertData = rawPayloadData
+                    .map(item => ({
+                        date: state.currentDate,
+                        item_type: item.item_type,
+                        col_id: item.col_id,
+                        value: parseInt(item.value, 10) || 0, 
+                        memo: item.memo || ""
+                    }))
+                    .filter(item => item.value !== 0 || item.memo.trim() !== "");
+
                 try {
+                    // 1. 기존 날짜 데이터 일괄 삭제 (과거 데이터 수정 대응)
                     const { error: deleteError } = await supabase
                         .from('factory3_geupji_real')
                         .delete()
@@ -447,25 +458,26 @@
                         return;
                     }
 
-                    const finalInsertData = rawPayloadData.map(item => ({
-                        date: state.currentDate,
-                        item_type: item.item_type,
-                        col_id: item.col_id,
-                        value: parseInt(item.value, 10) || 0, 
-                        memo: item.memo || ""
-                    }));
+                    // 2. 유효한(0이 아닌) 데이터가 있을 경우에만 새로 일괄 삽입
+                    if (finalInsertData.length > 0) {
+                        const { error: insertError } = await supabase
+                            .from('factory3_geupji_real')
+                            .insert(finalInsertData);
 
-                    const { error: insertError } = await supabase
-                        .from('factory3_geupji_real')
-                        .insert(finalInsertData);
-
-                    if (insertError) {
-                        alert('저장 실패: ' + insertError.message);
+                        if (insertError) {
+                            alert('저장 실패: ' + insertError.message);
+                        } else {
+                            alert('저장 완료되었습니다.');
+                            toggleEditMode(); 
+                            loadData(state.currentDate); 
+                        }
                     } else {
-                        alert('저장 완료되었습니다.');
-                        toggleEditMode(); 
-                        loadData(state.currentDate); 
+                        // 모든 칸을 다 지우고 저장했을 때의 처리
+                        alert('저장 완료되었습니다. (모든 값이 지워져 해당 날짜의 데이터가 초기화되었습니다.)');
+                        toggleEditMode();
+                        loadData(state.currentDate);
                     }
+                    
                 } catch (err) {
                     alert('네트워크 오류가 발생했습니다: ' + err.message);
                 }
@@ -481,7 +493,6 @@
     };
     window.GeupjiFactory3Module = GeupjiFactory3Module;
 
-    // 💡 정적 환경에서 파일 로드 완료 시 모듈 자동 실행 코드 추가
     document.addEventListener('DOMContentLoaded', function() {
         GeupjiFactory3Module.init();
     });
