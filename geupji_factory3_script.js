@@ -6,11 +6,9 @@
     // 💡 Supabase 연결 설정
     // ==========================================
     const supabaseUrl = 'https://npiflqoscsvnnauvqhrr.supabase.co';
-    // 공개되어도 안전한 Publishable 키입니다. (RLS로 보호됨)
     const supabaseKey = 'sb_publishable_ir-mHSsX6SSIQwHerkLbfA_2qCOP3KW'; 
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    // 💡 isAdmin의 기본값을 false로 변경했습니다.
     let state = { currentDate: null, isEditMode: false, fp: null, isAdmin: false }; 
     let elements = {};
 
@@ -42,6 +40,14 @@
         }
     };
 
+    // 💡 수정 중 내부 날짜 변경 시 경고를 위한 헬퍼 함수
+    function confirmLeaveEditMode() {
+        if (state.isEditMode) {
+            return confirm("저장되지 않은 변경사항이 있습니다. 나가시겠습니까?");
+        }
+        return true;
+    }
+
     async function loadData(dateStr) {
         if(state.isEditMode) toggleEditMode(); 
         
@@ -58,7 +64,7 @@
 
             document.querySelectorAll('.gf3-input').forEach(input => input.value = "");
             
-            const loadedStartBalCols = new Set(); // 오늘 데이터가 있는 열 체크
+            const loadedStartBalCols = new Set(); 
 
             if (data && data.length > 0) {
                 data.forEach(item => {
@@ -73,10 +79,17 @@
                     if (valNum !== 0) {
                         if (item.item_type === 'stat_total_usage') {
                             val = valNum.toLocaleString() + " kg";
+                        } else if (item.item_type.startsWith('side_wan')) {
+                            // 완롤 잔량 로드 시 R/L 표시
+                            val = valNum.toLocaleString() + " R/L";
                         } else {
                             const rInt = parseInt(r, 10);
-                            if (rInt >= 2 && rInt <= 7 && valNum >= 20) {
-                                val = valNum.toLocaleString() + " kg";
+                            if (rInt >= 2 && rInt <= 7) {
+                                if (valNum >= 20) {
+                                    val = valNum.toLocaleString() + " kg";
+                                } else {
+                                    val = valNum.toLocaleString() + " R/L";
+                                }
                             } else {
                                 val = valNum.toLocaleString();
                             }
@@ -103,7 +116,6 @@
                 });
             }
             
-            // --- 전일 사용 후 잔량 불러오기 (DB 저장 없이 단순 노출) ---
             const cols = ['B', 'C', 'D', 'E', 'F', 'G'];
             const missingStartBalCols = cols.filter(col => !loadedStartBalCols.has(col));
             
@@ -127,7 +139,6 @@
                     });
                 }
             }
-            // ------------------------------------
             
             calculateAutoFields();
         } catch (err) {
@@ -143,7 +154,6 @@
 
         ['B','C','D','E','F','G'].forEach(col => {
             const factor = (col === 'B') ? FACTOR_788 : FACTOR_1576;
-            
             const startBal = utils.parseNum(document.querySelector(`.target-calc[data-col="${col}"][data-row="1"]`)?.value);
             
             let wanKgSum = 0;
@@ -190,7 +200,6 @@
         const realUsage = usageD + usageA;
         if(elRealUsage) elRealUsage.value = realUsage > 0 ? utils.formatKg(realUsage) : "";
 
-        // 수동 입력된 사용량 총계를 읽어와서 증감을 계산합니다.
         let totalUsageVal = utils.parseNum(document.getElementById('statTotalUsage')?.value);
 
         if (totalUsageVal > 0 && realUsage > 0) {
@@ -209,8 +218,9 @@
         const elGeupA = document.getElementById('sideGeupA');
         const elGeupD = document.getElementById('sideGeupD');
         
-        if(elGeupA) elGeupA.value = geupA > 0 ? geupA.toLocaleString() : "0";
-        if(elGeupD) elGeupD.value = geupD > 0 ? geupD.toLocaleString() : "0";
+        // 💡 급지 재고 각각 셀 뒤에 항상 " kg" 단위 부착
+        if(elGeupA) elGeupA.value = geupA > 0 ? geupA.toLocaleString() + " kg" : "0 kg";
+        if(elGeupD) elGeupD.value = geupD > 0 ? geupD.toLocaleString() + " kg" : "0 kg";
     }
 
     function bindInputFormatters() {
@@ -228,10 +238,18 @@
                 } else {
                     if (this.id === 'statTotalUsage') {
                         this.value = v.toLocaleString() + " kg";
+                    } else if (this.id === 'sideWanA' || this.id === 'sideWanD') {
+                        // 💡 완롤 잔량 전용 셀은 항상 " R/L" 부착
+                        this.value = v.toLocaleString() + " R/L";
                     } else {
                         const row = parseInt(this.dataset.row, 10);
-                        if (row >= 2 && row <= 7 && v >= 20) {
-                            this.value = v.toLocaleString() + " kg";
+                        if (row >= 2 && row <= 7) {
+                            // 💡 완롤 영역의 셀 규칙 세분화 (20이상 kg, 19이하 R/L)
+                            if (v >= 20) {
+                                this.value = v.toLocaleString() + " kg";
+                            } else {
+                                this.value = v.toLocaleString() + " R/L";
+                            }
                         } else {
                             this.value = v.toLocaleString();
                         }
@@ -300,14 +318,13 @@
     }
 
     function toggleEditMode() {
-        if (!state.isAdmin) return; // 권한 없으면 차단
+        if (!state.isAdmin) return; 
         state.isEditMode = !state.isEditMode;
         
         if (state.isEditMode) {
             elements.wrapper.classList.add('edit-mode');
             elements.editBtn.textContent = '보기';
             elements.saveBtn.disabled = false;
-            // 예외 없이 모든 editable 칸 쓰기 가능
             elements.wrapper.querySelectorAll('.gf3-td.editable .gf3-input').forEach(input => input.readOnly = false);
         } else {
             elements.wrapper.classList.remove('edit-mode');
@@ -320,30 +337,39 @@
     const GeupjiFactory3Module = {
         init: function() {
             // ==========================================
-            // 🔒 비밀번호 체크 및 권한 할당 (세션 유지 적용)
+            // 🔒 비밀번호 체크 및 권한 할당
             // ==========================================
             const savedRole = sessionStorage.getItem('gf3_role');
 
             if (savedRole === 'admin') {
-                state.isAdmin = true;  // 세션이 관리자면 자동 로그인
+                state.isAdmin = true;  
             } else if (savedRole === 'readonly') {
-                state.isAdmin = false; // 세션이 읽기전용이면 자동 로그인
+                state.isAdmin = false; 
             } else {
-                // 세션 기록이 없을 때만 최초 1회 비밀번호 요청
                 const pwInput = prompt("접속 비밀번호를 입력하세요:");
                 
                 if (pwInput === "mk1324") {
-                    state.isAdmin = true;  // 수정 및 저장 가능
-                    sessionStorage.setItem('gf3_role', 'admin'); // 세션 저장
+                    state.isAdmin = true;  
+                    sessionStorage.setItem('gf3_role', 'admin'); 
                 } else if (pwInput === "mk1111") {
-                    state.isAdmin = false; // 읽기 전용 모드
-                    sessionStorage.setItem('gf3_role', 'readonly'); // 세션 저장
+                    state.isAdmin = false; 
+                    sessionStorage.setItem('gf3_role', 'readonly'); 
                 } else {
                     alert("비밀번호가 올바르지 않습니다.");
                     location.href = "about:blank"; 
                     return; 
                 }
             }
+
+            // ==========================================
+            // 💡 브라우저 새로고침/닫기 방지 이벤트 바인딩
+            // ==========================================
+            window.addEventListener('beforeunload', function(e) {
+                if (state.isEditMode) {
+                    e.preventDefault();
+                    e.returnValue = ''; 
+                }
+            });
 
             // ==========================================
             // 원래 로직 시작
@@ -366,44 +392,46 @@
             state.currentDate = utils.addDays(today, -1);
             elements.dateText.innerText = utils.formatKoDate(state.currentDate);
 
-            // 💡 캘린더 안정화 플래그
             let justClosed = false;
 
-            // 💡 캘린더 초기화
             state.fp = flatpickr("#gf3Flatpickr", {
                 locale: "ko", 
                 dateFormat: "Y-m-d", 
                 defaultDate: state.currentDate,
-                positionElement: elements.dateText, // 위치 기준을 dateText로 유지
+                positionElement: elements.dateText, 
                 position: "auto center", 
-                clickOpens: false, // 기본 클릭 방지
+                clickOpens: false, 
                 
                 onReady: function(selectedDates, dateStr, instance) { 
                     instance.calendarContainer.style.marginTop = "10px"; 
                 },
                 
                 onChange: (dates, str) => {
+                    // 💡 날짜 변경 전 수정 이탈 경고 체크
+                    if (!confirmLeaveEditMode()) {
+                        state.fp.setDate(state.currentDate, false);
+                        return;
+                    }
                     state.currentDate = str;
                     elements.dateText.innerText = utils.formatKoDate(str);
                     loadData(str);
                 },
                 onClose: () => {
-                    // 닫힐 때 즉시 열리는 현상 방지를 위해 짧은 시간 동안 플래그 활성화
                     justClosed = true;
                     setTimeout(() => { justClosed = false; }, 200);
                 }
             });
 
-            // 💡 날짜 텍스트 클릭 시 이벤트 버블링 차단 및 안전한 토글 처리
             elements.dateText.addEventListener('click', (e) => {
-                e.stopPropagation(); // ⭐️ 핵심 해결책: Flatpickr의 외부 클릭 감지와 충돌 방지
-                if (justClosed) return; // 방금 닫혔다면 다시 열지 않음
+                e.stopPropagation(); 
+                if (justClosed) return; 
                 if (state.fp) {
                     state.fp.toggle();
                 }
             });
             
             elements.prevBtn.addEventListener('click', () => {
+                if (!confirmLeaveEditMode()) return; // 💡 이탈 경고
                 const prev = utils.addDays(state.currentDate, -1);
                 state.fp.setDate(prev);
                 state.currentDate = prev;
@@ -412,6 +440,7 @@
             });
 
             elements.nextBtn.addEventListener('click', () => {
+                if (!confirmLeaveEditMode()) return; // 💡 이탈 경고
                 const next = utils.addDays(state.currentDate, 1);
                 state.fp.setDate(next);
                 state.currentDate = next;
@@ -422,6 +451,7 @@
             elements.todayBtn.addEventListener('click', () => {
                 const today = utils.getTodayStr();
                 if (state.currentDate !== today) {
+                    if (!confirmLeaveEditMode()) return; // 💡 이탈 경고
                     state.fp.setDate(today);
                     state.currentDate = today;
                     elements.dateText.innerText = utils.formatKoDate(today);
@@ -437,7 +467,8 @@
                 const rawPayloadData = [];
                 const cols = ['B', 'C', 'D', 'E', 'F', 'G'];
                 
-                const extractVal = (el) => el ? el.value.replace(/,/g, '').replace(/kg/g, '').trim() : "";
+                // 💡 문자열 정제 시 R/L 패턴도 깔끔하게 지우도록 정규식 보완
+                const extractVal = (el) => el ? el.value.replace(/,/g, '').replace(/kg/g, '').replace(/R\/L/g, '').trim() : "";
 
                 cols.forEach(col => {
                     const startEl = document.querySelector(`.gf3-input[data-row="1"][data-col="${col}"]`);
