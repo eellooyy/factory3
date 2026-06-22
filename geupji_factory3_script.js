@@ -9,7 +9,8 @@
     const supabaseKey = 'sb_publishable_ir-mHSsX6SSIQwHerkLbfA_2qCOP3KW'; 
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    let state = { currentDate: null, isEditMode: false, fp: null, isAdmin: false }; 
+    // 💡 state 객체에 전일 완롤 잔량 임시 보관 필드(prevWanA, prevWanD) 추가
+    let state = { currentDate: null, isEditMode: false, fp: null, isAdmin: false, prevWanA: 0, prevWanD: 0 }; 
     let elements = {};
 
     const FACTOR_788 = 571;
@@ -40,7 +41,6 @@
         }
     };
 
-    // 💡 수정 중 내부 날짜 변경 시 경고를 위한 헬퍼 함수
     function confirmLeaveEditMode() {
         if (state.isEditMode) {
             return confirm("저장되지 않은 변경사항이 있습니다. 나가시겠습니까?");
@@ -65,6 +65,10 @@
             document.querySelectorAll('.gf3-input').forEach(input => input.value = "");
             
             const loadedStartBalCols = new Set(); 
+            
+            // 전일 데이터 값 초기화
+            state.prevWanA = 0;
+            state.prevWanD = 0;
 
             if (data && data.length > 0) {
                 data.forEach(item => {
@@ -80,7 +84,6 @@
                         if (item.item_type === 'stat_total_usage') {
                             val = valNum.toLocaleString() + " kg";
                         } else if (item.item_type.startsWith('side_wan')) {
-                            // 완롤 잔량 로드 시 R/L 표시
                             val = valNum.toLocaleString() + " R/L";
                         } else {
                             const rInt = parseInt(r, 10);
@@ -119,25 +122,29 @@
             const cols = ['B', 'C', 'D', 'E', 'F', 'G'];
             const missingStartBalCols = cols.filter(col => !loadedStartBalCols.has(col));
             
-            if (missingStartBalCols.length > 0) {
-                const prevDate = utils.addDays(dateStr, -1);
-                const { data: prevData, error: prevError } = await supabase
-                    .from('factory3_geupji_real')
-                    .select('*')
-                    .eq('date', prevDate)
-                    .eq('item_type', 'end_bal_10');
-                
-                if (!prevError && prevData) {
-                    prevData.forEach(item => {
-                        if (missingStartBalCols.includes(item.col_id)) {
-                            const valNum = item.value ? Number(item.value) : 0;
-                            if (valNum !== 0) {
-                                const el = document.querySelector(`.gf3-input[data-row="1"][data-col="${item.col_id}"]`);
-                                if (el) el.value = valNum.toLocaleString();
-                            }
+            // 💡 전일 데이터 통합 조회 (기존의 사용 전 잔량 채우기 + 신규 급지 출고 연산용 전일 완롤 데이터 확보)
+            const prevDate = utils.addDays(dateStr, -1);
+            const { data: prevData, error: prevError } = await supabase
+                .from('factory3_geupji_real')
+                .select('*')
+                .eq('date', prevDate);
+            
+            if (!prevError && prevData) {
+                prevData.forEach(item => {
+                    // 전일 사용 후 잔량 -> 금일 사용 전 잔량 바인딩 (기존)
+                    if (item.item_type === 'end_bal_10' && missingStartBalCols.includes(item.col_id)) {
+                        const valNum = item.value ? Number(item.value) : 0;
+                        if (valNum !== 0) {
+                            const el = document.querySelector(`.gf3-input[data-row="1"][data-col="${item.col_id}"]`);
+                            if (el) el.value = valNum.toLocaleString();
                         }
-                    });
-                }
+                    }
+                    // 전일 완롤 잔량 캐싱 (신규)
+                    if (item.item_type === 'side_wan_1') {
+                        if (item.col_id === 'A') state.prevWanA = item.value ? Number(item.value) : 0;
+                        if (item.col_id === 'D') state.prevWanD = item.value ? Number(item.value) : 0;
+                    }
+                });
             }
             
             calculateAutoFields();
@@ -152,6 +159,10 @@
         let endBalD = 0; 
         let endBalA = 0; 
 
+        // 💡 금일 입력된 완롤 영역의 실질적인 롤(R/L) 누적 변수
+        let sumTodayRollD = 0;
+        let sumTodayRollA = 0;
+
         ['B','C','D','E','F','G'].forEach(col => {
             const factor = (col === 'B') ? FACTOR_788 : FACTOR_1576;
             const startBal = utils.parseNum(document.querySelector(`.target-calc[data-col="${col}"][data-row="1"]`)?.value);
@@ -163,6 +174,12 @@
                     wanKgSum += cellVal;
                 } else {
                     wanKgSum += (cellVal * factor);
+                    // 💡 20 미만일 때 완롤 R/L 개수로 인정하여 합산 유도
+                    if (col === 'B') {
+                        sumTodayRollD += cellVal;
+                    } else {
+                        sumTodayRollA += cellVal;
+                    }
                 }
             }
             
@@ -218,9 +235,20 @@
         const elGeupA = document.getElementById('sideGeupA');
         const elGeupD = document.getElementById('sideGeupD');
         
-        // 💡 급지 재고 각각 셀 뒤에 항상 " kg" 단위 부착
         if(elGeupA) elGeupA.value = geupA > 0 ? geupA.toLocaleString() + " kg" : "0 kg";
         if(elGeupD) elGeupD.value = geupD > 0 ? geupD.toLocaleString() + " kg" : "0 kg";
+
+        // ==========================================
+        // 💡 [신규] 급지 출고 실시간 연산 로직 (화면 출력 전용)
+        // ==========================================
+        const chulgoA = (state.prevWanA + sumTodayRollA) - wanA;
+        const chulgoD = (state.prevWanD + sumTodayRollD) - wanD;
+
+        const elChulgoA = document.getElementById('sideChulgoA');
+        const elChulgoD = document.getElementById('sideChulgoD');
+
+        if(elChulgoA) elChulgoA.value = chulgoA.toLocaleString() + " R/L";
+        if(elChulgoD) elChulgoD.value = chulgoD.toLocaleString() + " R/L";
     }
 
     function bindInputFormatters() {
@@ -239,12 +267,10 @@
                     if (this.id === 'statTotalUsage') {
                         this.value = v.toLocaleString() + " kg";
                     } else if (this.id === 'sideWanA' || this.id === 'sideWanD') {
-                        // 💡 완롤 잔량 전용 셀은 항상 " R/L" 부착
                         this.value = v.toLocaleString() + " R/L";
                     } else {
                         const row = parseInt(this.dataset.row, 10);
                         if (row >= 2 && row <= 7) {
-                            // 💡 완롤 영역의 셀 규칙 세분화 (20이상 kg, 19이하 R/L)
                             if (v >= 20) {
                                 this.value = v.toLocaleString() + " kg";
                             } else {
@@ -336,9 +362,6 @@
 
     const GeupjiFactory3Module = {
         init: function() {
-            // ==========================================
-            // 🔒 비밀번호 체크 및 권한 할당
-            // ==========================================
             const savedRole = sessionStorage.getItem('gf3_role');
 
             if (savedRole === 'admin') {
@@ -361,9 +384,6 @@
                 }
             }
 
-            // ==========================================
-            // 💡 브라우저 새로고침/닫기 방지 이벤트 바인딩
-            // ==========================================
             window.addEventListener('beforeunload', function(e) {
                 if (state.isEditMode) {
                     e.preventDefault();
@@ -371,9 +391,6 @@
                 }
             });
 
-            // ==========================================
-            // 원래 로직 시작
-            // ==========================================
             elements.wrapper = document.querySelector('.gf3-wrapper');
             if(!elements.wrapper) return;
             
@@ -407,7 +424,6 @@
                 },
                 
                 onChange: (dates, str) => {
-                    // 💡 날짜 변경 전 수정 이탈 경고 체크
                     if (!confirmLeaveEditMode()) {
                         state.fp.setDate(state.currentDate, false);
                         return;
@@ -431,7 +447,7 @@
             });
             
             elements.prevBtn.addEventListener('click', () => {
-                if (!confirmLeaveEditMode()) return; // 💡 이탈 경고
+                if (!confirmLeaveEditMode()) return; 
                 const prev = utils.addDays(state.currentDate, -1);
                 state.fp.setDate(prev);
                 state.currentDate = prev;
@@ -440,7 +456,7 @@
             });
 
             elements.nextBtn.addEventListener('click', () => {
-                if (!confirmLeaveEditMode()) return; // 💡 이탈 경고
+                if (!confirmLeaveEditMode()) return; 
                 const next = utils.addDays(state.currentDate, 1);
                 state.fp.setDate(next);
                 state.currentDate = next;
@@ -451,7 +467,7 @@
             elements.todayBtn.addEventListener('click', () => {
                 const today = utils.getTodayStr();
                 if (state.currentDate !== today) {
-                    if (!confirmLeaveEditMode()) return; // 💡 이탈 경고
+                    if (!confirmLeaveEditMode()) return; 
                     state.fp.setDate(today);
                     state.currentDate = today;
                     elements.dateText.innerText = utils.formatKoDate(today);
@@ -467,7 +483,6 @@
                 const rawPayloadData = [];
                 const cols = ['B', 'C', 'D', 'E', 'F', 'G'];
                 
-                // 💡 문자열 정제 시 R/L 패턴도 깔끔하게 지우도록 정규식 보완
                 const extractVal = (el) => el ? el.value.replace(/,/g, '').replace(/kg/g, '').replace(/R\/L/g, '').trim() : "";
 
                 cols.forEach(col => {

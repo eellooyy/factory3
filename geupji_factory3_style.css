@@ -100,7 +100,7 @@ body {
 
 /* 날짜 텍스트 폰트 크기 조절 */
 #gf3DateText {
-    font-size: 18px;      /* 원하는 크기로 조절 (기본값이 작다면 18px~22px 정도로 수정) */
-    font-weight: 700;     /* 조금 더 굵게 하려면 700, 보통은 600 */
-    color: #1d1d1f;       /* 글자 색상 */
+    font-size: 18px;      
+    font-weight: 700;     
+    color: #1d1d1f;       
 }
