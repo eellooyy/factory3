@@ -104,3 +104,8 @@ body {
     font-weight: 700;     
     color: #1d1d1f;       
 }
+
+body {
+    zoom: 115%; /* 또는 120% */
+    /* 기존 속성들... */
+}
