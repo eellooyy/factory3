@@ -305,7 +305,7 @@
     }
 
     // ==========================================
-    // 💡 엑셀 출력 기능 구현 (커스텀 양식 적용 완료)
+    // 💡 엑셀 출력 기능 구현
     // ==========================================
     function exportToExcel() {
         if (!window.XLSX) {
@@ -321,88 +321,57 @@
             try {
                 const val = (selector) => { const el = document.querySelector(selector); return el ? el.value : ""; };
 
-                // "2026년 6월 24일 수요일" 포맷 날짜 생성
+                // 날짜 생성
                 const dateObj = new Date(state.currentDate);
                 const dayNames = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
                 const formattedExcelDate = `${dateObj.getFullYear()}년 ${dateObj.getMonth()+1}월 ${dateObj.getDate()}일 ${dayNames[dateObj.getDay()]}`;
 
-                // 화면 구조와 동일하게 2차원 배열 구성 (K, L열에 미니 테이블 배치)
                 const ws_data = [
-                    // 행 1 (index 0) - H1~L1에 날짜 삽입
                     ["", "", "", "", "", "", "", formattedExcelDate, "", "", "", ""],
-                    // 행 2 (index 1) - 공백 줄
                     [],
-                    // 행 3 (index 2) - 타이틀 및 K3에 완롤 잔량 표 시작
                     ["", "788", "R51", "R52", "R53", "R54", "R55", "특집", "", "", "완롤 잔량", ""],
-                    // 행 4 (index 3)
                     ["사용 전 잔량", val('[data-row="1"][data-col="B"]'), val('[data-row="1"][data-col="C"]'), val('[data-row="1"][data-col="D"]'), val('[data-row="1"][data-col="E"]'), val('[data-row="1"][data-col="F"]'), val('[data-row="1"][data-col="G"]'), val('[data-row="1"][data-col="H"]'), "", "", "A", "D"],
-                    // 행 5 (index 4)
                     ["완 롤", val('[data-row="2"][data-col="B"]'), val('[data-row="2"][data-col="C"]'), val('[data-row="2"][data-col="D"]'), val('[data-row="2"][data-col="E"]'), val('[data-row="2"][data-col="F"]'), val('[data-row="2"][data-col="G"]'), "", "", "", val('#sideWanA'), val('#sideWanD')],
-                    // 행 6 (index 5)
                     ["", val('[data-row="3"][data-col="B"]'), val('[data-row="3"][data-col="C"]'), val('[data-row="3"][data-col="D"]'), val('[data-row="3"][data-col="E"]'), val('[data-row="3"][data-col="F"]'), val('[data-row="3"][data-col="G"]'), "사용량 총계:", val('#statTotalUsage'), "", "", ""],
-                    // 행 7 (index 6) - K7에 급지 재고 표 시작
                     ["", val('[data-row="4"][data-col="B"]'), val('[data-row="4"][data-col="C"]'), val('[data-row="4"][data-col="D"]'), val('[data-row="4"][data-col="E"]'), val('[data-row="4"][data-col="F"]'), val('[data-row="4"][data-col="G"]'), "실사용량:", val('#statRealUsage'), "", "급지 재고", ""],
-                    // 행 8 (index 7)
                     ["", val('[data-row="5"][data-col="B"]'), val('[data-row="5"][data-col="C"]'), val('[data-row="5"][data-col="D"]'), val('[data-row="5"][data-col="E"]'), val('[data-row="5"][data-col="F"]'), val('[data-row="5"][data-col="G"]'), "증감:", val('#statDiff'), "", "A", "D"],
-                    // 행 9 (index 8)
                     ["", val('[data-row="6"][data-col="B"]'), val('[data-row="6"][data-col="C"]'), val('[data-row="6"][data-col="D"]'), val('[data-row="6"][data-col="E"]'), val('[data-row="6"][data-col="F"]'), val('[data-row="6"][data-col="G"]'), "", "", "", val('#sideGeupA'), val('#sideGeupD')],
-                    // 행 10 (index 9)
                     ["", val('[data-row="7"][data-col="B"]'), val('[data-row="7"][data-col="C"]'), val('[data-row="7"][data-col="D"]'), val('[data-row="7"][data-col="E"]'), val('[data-row="7"][data-col="F"]'), val('[data-row="7"][data-col="G"]'), "", "", "", "", ""],
-                    // 행 11 (index 10) - K11에 급지 출고 표 시작
                     ["사용 전 합계", val('[data-row="8"][data-col="B"]'), val('[data-row="8"][data-col="C"]'), val('[data-row="8"][data-col="D"]'), val('[data-row="8"][data-col="E"]'), val('[data-row="8"][data-col="F"]'), val('[data-row="8"][data-col="G"]'), "사용량 A (1576mm):", val('#statUsageA'), "", "급지 출고", ""],
-                    // 행 12 (index 11)
                     ["사용량", val('[data-row="9"][data-col="B"]'), val('[data-row="9"][data-col="C"]'), val('[data-row="9"][data-col="D"]'), val('[data-row="9"][data-col="E"]'), val('[data-row="9"][data-col="F"]'), val('[data-row="9"][data-col="G"]'), "사용량 D (788mm):", val('#statUsageD'), "", "A", "D"],
-                    // 행 13 (index 12)
                     ["사용 후 잔량", val('[data-row="10"][data-col="B"]'), val('[data-row="10"][data-col="C"]'), val('[data-row="10"][data-col="D"]'), val('[data-row="10"][data-col="E"]'), val('[data-row="10"][data-col="F"]'), val('[data-row="10"][data-col="G"]'), "", "", "", val('#sideChulgoA'), val('#sideChulgoD')]
                 ];
 
                 const wb = XLSX.utils.book_new();
                 const ws = XLSX.utils.aoa_to_sheet(ws_data);
 
-                // 화면에 맞춘 셀 병합(Merge) 설정
                 ws['!merges'] = [
-                    { s: {r: 0, c: 7}, e: {r: 0, c: 11} }, // 1행 H~L 날짜 병합
-                    { s: {r: 2, c: 7}, e: {r: 2, c: 8} },  // 특집 헤더 병합 (H3:I3)
-                    { s: {r: 3, c: 7}, e: {r: 3, c: 8} },  // 메모 입력칸 병합 (H4:I4)
-                    { s: {r: 4, c: 0}, e: {r: 9, c: 0} },  // "완 롤" 세로 병합 (행 5~10 / A5:A10)
+                    { s: {r: 0, c: 7}, e: {r: 0, c: 11} },
+                    { s: {r: 2, c: 7}, e: {r: 2, c: 8} },
+                    { s: {r: 3, c: 7}, e: {r: 3, c: 8} },
+                    { s: {r: 4, c: 0}, e: {r: 9, c: 0} },
                     
-                    // 특집 빈칸 우측 병합 처리
                     { s: {r: 4, c: 7}, e: {r: 4, c: 8} },
                     { s: {r: 8, c: 7}, e: {r: 8, c: 8} },
                     { s: {r: 9, c: 7}, e: {r: 9, c: 8} },
                     { s: {r: 12, c: 7}, e: {r: 12, c: 8} },
                     
-                    // 우측 미니 테이블 3개 제목 셀 병합
-                    { s: {r: 2, c: 10}, e: {r: 2, c: 11} }, // 완롤 잔량 (K3:L3)
-                    { s: {r: 6, c: 10}, e: {r: 6, c: 11} }, // 급지 재고 (K7:L7)
-                    { s: {r: 10, c: 10}, e: {r: 10, c: 11} } // 급지 출고 (K11:L11)
+                    { s: {r: 2, c: 10}, e: {r: 2, c: 11} },
+                    { s: {r: 6, c: 10}, e: {r: 6, c: 11} },
+                    { s: {r: 10, c: 10}, e: {r: 10, c: 11} }
                 ];
 
-                // 💡 열(Column) 너비 엑셀 표준 수치(wch) 적용
                 ws['!cols'] = [
-                    {wch: 13},  // A
-                    {wch: 9},   // B
-                    {wch: 9},   // C
-                    {wch: 9},   // D
-                    {wch: 9},   // E
-                    {wch: 9},   // F
-                    {wch: 9},   // G
-                    {wch: 20},  // H
-                    {wch: 17},  // I
-                    {wch: 1.3}, // J (여백)
-                    {wch: 10},  // K
-                    {wch: 10}   // L
+                    {wch: 13}, {wch: 9}, {wch: 9}, {wch: 9}, {wch: 9}, 
+                    {wch: 9}, {wch: 9}, {wch: 20}, {wch: 17}, {wch: 1.3}, 
+                    {wch: 10}, {wch: 10}
                 ];
 
-                // 💡 행(Row) 높이 수치 적용
                 ws['!rows'] = [
-                    {hpt: 35}, // 1행
-                    {hpt: 15}, // 2행 (빈줄)
-                    {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25}, // 3~7행
-                    {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25} // 8~13행
+                    {hpt: 35}, {hpt: 15}, {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25},
+                    {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25}
                 ];
 
-                // 디자인/스타일 적용
                 const thickBorder = { style: 'medium', color: {rgb: "000000"} };
                 
                 for (let R = 0; R <= 12; R++) {
@@ -418,67 +387,48 @@
                             fill: { fgColor: {rgb: "ffffff"} }
                         };
 
-                        // 1행 날짜 영역 스타일링
                         if (R === 0 && C >= 7 && C <= 11) {
-                            style.font.sz = 14;
-                            style.font.bold = true;
-                            style.alignment.horizontal = "right"; // 우측 정렬
+                            style.font.sz = 14; style.font.bold = true; style.alignment.horizontal = "right";
                         }
 
-                        // 빈칸 스킵 (2행 및 J열)
                         if (R === 1 || C === 9) {
-                            cell.s = style;
-                            continue;
+                            cell.s = style; continue;
                         }
 
-                        // ===============================================
-                        // 메인 테이블 디자인 (A열 ~ I열 / 3행 ~ 13행)
-                        // ===============================================
                         if (C <= 8 && R >= 2) {
-                            // 기본 얇은 선 적용
                             style.border = {
                                 top: {style: 'thin', color: {rgb: "8e8e93"}}, bottom: {style: 'thin', color: {rgb: "8e8e93"}},
                                 left: {style: 'thin', color: {rgb: "8e8e93"}}, right: {style: 'thin', color: {rgb: "8e8e93"}}
                             };
 
-                            // 배경색 및 폰트 굵기 처리
                             if (R === 2 || C === 0) style.fill = { fgColor: {rgb: "f5f5f7"} };
                             if (R === 10 || R === 11 || C === 0 || R === 2) style.font.bold = true;
 
-                            // 두꺼운 외곽선 디자인
-                            if (R === 2) style.border.top = thickBorder; // 표 상단
-                            if (R === 12) style.border.bottom = thickBorder; // 표 하단
-                            if (C === 0) style.border.left = thickBorder; // 표 좌측
-                            if (C === 6 || C === 8) style.border.right = thickBorder; // G, I열 우측 구분선
-                            if (R === 9 && C <= 6) style.border.bottom = thickBorder; // 사용 전 합계 위
+                            if (R === 2) style.border.top = thickBorder;
+                            if (R === 12) style.border.bottom = thickBorder;
+                            if (C === 0) style.border.left = thickBorder;
+                            if (C === 6 || C === 8) style.border.right = thickBorder;
+                            if (R === 9 && C <= 6) style.border.bottom = thickBorder;
 
-                            // [특집 구간 윤곽선 제거 로직]
                             if (C >= 7 && C <= 8) {
-                                // 1. 사용량 총계, 실사용량, 증감 (행 6~8 / idx 5~7) 가로선 제거
                                 if (R === 5) style.border.bottom = {};
                                 if (R === 6) { style.border.top = {}; style.border.bottom = {}; }
                                 if (R === 7) style.border.top = {};
 
-                                // 2. 사용량 A, 사용량 D (행 11~12 / idx 10~11) 가로선 제거
                                 if (R === 10) style.border.bottom = {};
                                 if (R === 11) style.border.top = {};
 
-                                // 특집 라벨 우측 정렬
                                 if (C === 7 && R >= 5 && R <= 11) style.alignment.horizontal = "right";
 
-                                // 병합된 빈칸 좌우 윤곽선 정리
                                 if (C === 7 && [4, 8, 9, 12].includes(R)) style.border.right = {};
                                 if (C === 8 && [4, 8, 9, 12].includes(R)) style.border.left = {};
                             }
                         }
 
-                        // ===============================================
-                        // 우측 미니 테이블 3개 디자인 (K열, L열 / 지정된 블록들)
-                        // ===============================================
                         if (C >= 10 && C <= 11) {
-                            const inBlock1 = R >= 2 && R <= 4;  // 완롤 잔량
-                            const inBlock2 = R >= 6 && R <= 8;  // 급지 재고
-                            const inBlock3 = R >= 10 && R <= 12; // 급지 출고
+                            const inBlock1 = R >= 2 && R <= 4;
+                            const inBlock2 = R >= 6 && R <= 8;
+                            const inBlock3 = R >= 10 && R <= 12;
 
                             if (inBlock1 || inBlock2 || inBlock3) {
                                 style.border = {
@@ -486,14 +436,10 @@
                                     left: {style: 'thin', color: {rgb: "8e8e93"}}, right: {style: 'thin', color: {rgb: "8e8e93"}}
                                 };
 
-                                // 제목칸 바탕색/글씨
                                 if (R === 2 || R === 6 || R === 10) { style.fill = { fgColor: {rgb: "f5f5f7"} }; style.font.bold = true; }
-                                // 서브 제목칸 (A, D)
                                 if (R === 3 || R === 7 || R === 11) { style.fill = { fgColor: {rgb: "fafafc"} }; }
-                                // 재고/출고값 굵게
                                 if ((inBlock2 || inBlock3) && (R === 8 || R === 12)) { style.font.bold = true; }
 
-                                // 3x2 블록 테두리를 두껍게
                                 if (R === 2 || R === 6 || R === 10) style.border.top = thickBorder;
                                 if (R === 4 || R === 8 || R === 12) style.border.bottom = thickBorder;
                                 if (C === 10) style.border.left = thickBorder;
@@ -505,7 +451,6 @@
                     }
                 }
 
-                // 가로 출력에 알맞게 자동 맞춤 인쇄 설정
                 const applyExportBorder = (cellRef, borderPatch) => {
                     const cell = ws[cellRef];
                     if (!cell || !cell.s) return;
@@ -574,14 +519,6 @@
                     }
                 }
 
-                const clearVerticalBorder = (cellRef, side) => {
-                    const cell = ws[cellRef];
-                    if (!cell || !cell.s) return;
-                    cell.s.border = cell.s.border || {};
-                    cell.s.border[side] = {};
-                };
-
-                // Final user-specified adjustments.
                 [2, 3].forEach((r) => {
                     for (let c = 0; c <= 8; c++) {
                         applyExportBorder(XLSX.utils.encode_cell({ c, r }), { bottom: exportThickBorder });
@@ -600,56 +537,70 @@
                     applyExportBorder(XLSX.utils.encode_cell({ c: 8, r }), { right: exportThickBorder });
                 }
 
-                for (let r = 4; r <= 11; r++) {
-                    clearVerticalBorder(XLSX.utils.encode_cell({ c: 7, r }), 'right');
-                    clearVerticalBorder(XLSX.utils.encode_cell({ c: 8, r }), 'left');
-                }
-
-                // Fine-grained H/I border removals requested by the user.
-                const clearBottomBorder = (cellRef) => clearVerticalBorder(cellRef, 'bottom');
-                const clearRightBorder = (cellRef) => clearVerticalBorder(cellRef, 'right');
-
-                // H5, I5
-                clearBottomBorder(XLSX.utils.encode_cell({ c: 7, r: 4 }));
-                clearBottomBorder(XLSX.utils.encode_cell({ c: 8, r: 4 }));
-
-                // H6, I6
-                clearRightBorder(XLSX.utils.encode_cell({ c: 7, r: 5 }));
-                clearBottomBorder(XLSX.utils.encode_cell({ c: 8, r: 5 }));
-
-                // H7, I7
-                clearBottomBorder(XLSX.utils.encode_cell({ c: 7, r: 6 }));
-                clearRightBorder(XLSX.utils.encode_cell({ c: 7, r: 6 }));
-                clearBottomBorder(XLSX.utils.encode_cell({ c: 8, r: 6 }));
-
-                // H8, I8
-                clearBottomBorder(XLSX.utils.encode_cell({ c: 7, r: 7 }));
-                clearRightBorder(XLSX.utils.encode_cell({ c: 7, r: 7 }));
-                clearBottomBorder(XLSX.utils.encode_cell({ c: 8, r: 7 }));
-
-                // H9, I9
-                clearBottomBorder(XLSX.utils.encode_cell({ c: 7, r: 8 }));
-                clearBottomBorder(XLSX.utils.encode_cell({ c: 8, r: 8 }));
-
-                // H11, I11
-                clearBottomBorder(XLSX.utils.encode_cell({ c: 7, r: 10 }));
-                clearRightBorder(XLSX.utils.encode_cell({ c: 7, r: 10 }));
-                clearBottomBorder(XLSX.utils.encode_cell({ c: 8, r: 10 }));
-
-                // H12, I12
-                clearBottomBorder(XLSX.utils.encode_cell({ c: 7, r: 11 }));
-                clearRightBorder(XLSX.utils.encode_cell({ c: 7, r: 11 }));
-                clearBottomBorder(XLSX.utils.encode_cell({ c: 8, r: 11 }));
-
-                ws['!pageSetup'] = {
-                    orientation: 'landscape', // 가로 방향 출력
-                    fitToWidth: 1,           // 한 페이지 너비에 맞춤
-                    fitToHeight: 1,
-                    paperSize: 9,            // A4
-                    horizontalCentered: true // 가로 중앙 정렬
+                // =====================================================================
+                // 💡 사용자가 명시적으로 요청한 '선 없음' 완벽 적용 (인접 셀 선까지 확실히 지우기)
+                // =====================================================================
+                const setNoBorder = (c, r, side) => {
+                    const cellRef = XLSX.utils.encode_cell({ c, r });
+                    if (ws[cellRef] && ws[cellRef].s && ws[cellRef].s.border) {
+                        delete ws[cellRef].s.border[side];
+                    }
+                    // '아래선 없음'일 경우 아래칸의 윗선도 지워야 화면에서 사라짐
+                    if (side === 'bottom') {
+                        const adjRef = XLSX.utils.encode_cell({ c, r: r + 1 });
+                        if (ws[adjRef] && ws[adjRef].s && ws[adjRef].s.border) delete ws[adjRef].s.border.top;
+                    } 
+                    // '우측선 없음'일 경우 우측칸의 좌측선도 지워야 화면에서 사라짐
+                    else if (side === 'right') {
+                        const adjRef = XLSX.utils.encode_cell({ c: c + 1, r });
+                        if (ws[adjRef] && ws[adjRef].s && ws[adjRef].s.border) delete ws[adjRef].s.border.left;
+                    }
                 };
 
-                // 여백 설정
+                // H열(C:7), I열(C:8) / 엑셀 행번호 = r+1
+
+                // 1. H5, I5 아래선 없음 (r: 4)
+                setNoBorder(7, 4, 'bottom');
+                setNoBorder(8, 4, 'bottom');
+
+                // 2. H6 우측선 없음, I6 아래선 없음 (r: 5)
+                setNoBorder(7, 5, 'right');
+                setNoBorder(8, 5, 'bottom');
+
+                // 3. H7 아래선 및 우측선 없음, I7 아래선 없음 (r: 6)
+                setNoBorder(7, 6, 'bottom');
+                setNoBorder(7, 6, 'right');
+                setNoBorder(8, 6, 'bottom');
+
+                // 4. H8 아래선 및 우측선 없음, I8 아래선 없음 (r: 7)
+                setNoBorder(7, 7, 'bottom');
+                setNoBorder(7, 7, 'right');
+                setNoBorder(8, 7, 'bottom');
+
+                // 5. H9, I9 아래선 없음 (r: 8)
+                setNoBorder(7, 8, 'bottom');
+                setNoBorder(8, 8, 'bottom');
+
+                // 6. H11 아래선 및 우측선 없음, I11 아래선 없음 (r: 10)
+                setNoBorder(7, 10, 'bottom');
+                setNoBorder(7, 10, 'right');
+                setNoBorder(8, 10, 'bottom');
+
+                // 7. H12 아래선 및 우측선 없음, I12 아래선 없음 (r: 11)
+                setNoBorder(7, 11, 'bottom');
+                setNoBorder(7, 11, 'right');
+                setNoBorder(8, 11, 'bottom');
+                // =====================================================================
+
+
+                ws['!pageSetup'] = {
+                    orientation: 'landscape', 
+                    fitToWidth: 1,           
+                    fitToHeight: 1,
+                    paperSize: 9,            
+                    horizontalCentered: true 
+                };
+
                 ws['!margins'] = { left: 0.5, right: 0.5, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 };
 
                 XLSX.utils.book_append_sheet(wb, ws, "일지");
