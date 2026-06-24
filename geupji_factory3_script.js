@@ -304,7 +304,7 @@
     }
 
     // ==========================================
-    // 💡 엑셀 출력 기능 구현 (SheetJS 활용)
+    // 💡 엑셀 출력 기능 구현 (커스텀 양식 적용 완료)
     // ==========================================
     function exportToExcel() {
         if (!window.XLSX) {
@@ -312,7 +312,6 @@
             return;
         }
 
-        // 엑셀 버튼 로딩 상태 적용
         const btnInner = elements.excelBtn.innerHTML;
         elements.excelBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px; margin-right: 4px;">hourglass_empty</span>처리중...';
         elements.excelBtn.disabled = true;
@@ -321,23 +320,39 @@
             try {
                 const val = (selector) => { const el = document.querySelector(selector); return el ? el.value : ""; };
 
-                // 화면 구조와 동일하게 2차원 배열 구성 (사이드 패널은 메인 표 아래에 배치)
+                // "2026년 6월 24일 수요일" 포맷 날짜 생성
+                const dateObj = new Date(state.currentDate);
+                const dayNames = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
+                const formattedExcelDate = `${dateObj.getFullYear()}년 ${dateObj.getMonth()+1}월 ${dateObj.getDate()}일 ${dayNames[dateObj.getDay()]}`;
+
+                // 화면 구조와 동일하게 2차원 배열 구성 (K, L열에 미니 테이블 배치)
                 const ws_data = [
-                    ["", "788", "R51", "R52", "R53", "R54", "R55", "특집", ""],
-                    ["사용 전 잔량", val('[data-row="1"][data-col="B"]'), val('[data-row="1"][data-col="C"]'), val('[data-row="1"][data-col="D"]'), val('[data-row="1"][data-col="E"]'), val('[data-row="1"][data-col="F"]'), val('[data-row="1"][data-col="G"]'), val('[data-row="1"][data-col="H"]'), ""],
-                    ["완 롤", val('[data-row="2"][data-col="B"]'), val('[data-row="2"][data-col="C"]'), val('[data-row="2"][data-col="D"]'), val('[data-row="2"][data-col="E"]'), val('[data-row="2"][data-col="F"]'), val('[data-row="2"][data-col="G"]'), "", ""],
-                    ["", val('[data-row="3"][data-col="B"]'), val('[data-row="3"][data-col="C"]'), val('[data-row="3"][data-col="D"]'), val('[data-row="3"][data-col="E"]'), val('[data-row="3"][data-col="F"]'), val('[data-row="3"][data-col="G"]'), "사용량 총계:", val('#statTotalUsage')],
-                    ["", val('[data-row="4"][data-col="B"]'), val('[data-row="4"][data-col="C"]'), val('[data-row="4"][data-col="D"]'), val('[data-row="4"][data-col="E"]'), val('[data-row="4"][data-col="F"]'), val('[data-row="4"][data-col="G"]'), "실사용량:", val('#statRealUsage')],
-                    ["", val('[data-row="5"][data-col="B"]'), val('[data-row="5"][data-col="C"]'), val('[data-row="5"][data-col="D"]'), val('[data-row="5"][data-col="E"]'), val('[data-row="5"][data-col="F"]'), val('[data-row="5"][data-col="G"]'), "증감:", val('#statDiff')],
-                    ["", val('[data-row="6"][data-col="B"]'), val('[data-row="6"][data-col="C"]'), val('[data-row="6"][data-col="D"]'), val('[data-row="6"][data-col="E"]'), val('[data-row="6"][data-col="F"]'), val('[data-row="6"][data-col="G"]'), "", ""],
-                    ["", val('[data-row="7"][data-col="B"]'), val('[data-row="7"][data-col="C"]'), val('[data-row="7"][data-col="D"]'), val('[data-row="7"][data-col="E"]'), val('[data-row="7"][data-col="F"]'), val('[data-row="7"][data-col="G"]'), "", ""],
-                    ["사용 전 합계", val('[data-row="8"][data-col="B"]'), val('[data-row="8"][data-col="C"]'), val('[data-row="8"][data-col="D"]'), val('[data-row="8"][data-col="E"]'), val('[data-row="8"][data-col="F"]'), val('[data-row="8"][data-col="G"]'), "사용량 A (1576mm):", val('#statUsageA')],
-                    ["사용량", val('[data-row="9"][data-col="B"]'), val('[data-row="9"][data-col="C"]'), val('[data-row="9"][data-col="D"]'), val('[data-row="9"][data-col="E"]'), val('[data-row="9"][data-col="F"]'), val('[data-row="9"][data-col="G"]'), "사용량 D (788mm):", val('#statUsageD')],
-                    ["사용 후 잔량", val('[data-row="10"][data-col="B"]'), val('[data-row="10"][data-col="C"]'), val('[data-row="10"][data-col="D"]'), val('[data-row="10"][data-col="E"]'), val('[data-row="10"][data-col="F"]'), val('[data-row="10"][data-col="G"]'), "", ""],
-                    [], // 11번 행은 간격을 위한 빈 줄
-                    ["", "", "", "완롤 잔량", "", "급지 재고", "", "급지 출고", ""],
-                    ["", "", "", "A", "D", "A", "D", "A", "D"],
-                    ["", "", "", val('#sideWanA'), val('#sideWanD'), val('#sideGeupA'), val('#sideGeupD'), val('#sideChulgoA'), val('#sideChulgoD')]
+                    // 행 1 (index 0) - H1~L1에 날짜 삽입
+                    ["", "", "", "", "", "", "", formattedExcelDate, "", "", "", ""],
+                    // 행 2 (index 1) - 공백 줄
+                    [],
+                    // 행 3 (index 2) - 타이틀 및 K3에 완롤 잔량 표 시작
+                    ["", "788", "R51", "R52", "R53", "R54", "R55", "특집", "", "", "완롤 잔량", ""],
+                    // 행 4 (index 3)
+                    ["사용 전 잔량", val('[data-row="1"][data-col="B"]'), val('[data-row="1"][data-col="C"]'), val('[data-row="1"][data-col="D"]'), val('[data-row="1"][data-col="E"]'), val('[data-row="1"][data-col="F"]'), val('[data-row="1"][data-col="G"]'), val('[data-row="1"][data-col="H"]'), "", "", "A", "D"],
+                    // 행 5 (index 4)
+                    ["완 롤", val('[data-row="2"][data-col="B"]'), val('[data-row="2"][data-col="C"]'), val('[data-row="2"][data-col="D"]'), val('[data-row="2"][data-col="E"]'), val('[data-row="2"][data-col="F"]'), val('[data-row="2"][data-col="G"]'), "", "", "", val('#sideWanA'), val('#sideWanD')],
+                    // 행 6 (index 5)
+                    ["", val('[data-row="3"][data-col="B"]'), val('[data-row="3"][data-col="C"]'), val('[data-row="3"][data-col="D"]'), val('[data-row="3"][data-col="E"]'), val('[data-row="3"][data-col="F"]'), val('[data-row="3"][data-col="G"]'), "사용량 총계:", val('#statTotalUsage'), "", "", ""],
+                    // 행 7 (index 6) - K7에 급지 재고 표 시작
+                    ["", val('[data-row="4"][data-col="B"]'), val('[data-row="4"][data-col="C"]'), val('[data-row="4"][data-col="D"]'), val('[data-row="4"][data-col="E"]'), val('[data-row="4"][data-col="F"]'), val('[data-row="4"][data-col="G"]'), "실사용량:", val('#statRealUsage'), "", "급지 재고", ""],
+                    // 행 8 (index 7)
+                    ["", val('[data-row="5"][data-col="B"]'), val('[data-row="5"][data-col="C"]'), val('[data-row="5"][data-col="D"]'), val('[data-row="5"][data-col="E"]'), val('[data-row="5"][data-col="F"]'), val('[data-row="5"][data-col="G"]'), "증감:", val('#statDiff'), "", "A", "D"],
+                    // 행 9 (index 8)
+                    ["", val('[data-row="6"][data-col="B"]'), val('[data-row="6"][data-col="C"]'), val('[data-row="6"][data-col="D"]'), val('[data-row="6"][data-col="E"]'), val('[data-row="6"][data-col="F"]'), val('[data-row="6"][data-col="G"]'), "", "", "", val('#sideGeupA'), val('#sideGeupD')],
+                    // 행 10 (index 9)
+                    ["", val('[data-row="7"][data-col="B"]'), val('[data-row="7"][data-col="C"]'), val('[data-row="7"][data-col="D"]'), val('[data-row="7"][data-col="E"]'), val('[data-row="7"][data-col="F"]'), val('[data-row="7"][data-col="G"]'), "", "", "", "", ""],
+                    // 행 11 (index 10) - K11에 급지 출고 표 시작
+                    ["사용 전 합계", val('[data-row="8"][data-col="B"]'), val('[data-row="8"][data-col="C"]'), val('[data-row="8"][data-col="D"]'), val('[data-row="8"][data-col="E"]'), val('[data-row="8"][data-col="F"]'), val('[data-row="8"][data-col="G"]'), "사용량 A (1576mm):", val('#statUsageA'), "", "급지 출고", ""],
+                    // 행 12 (index 11)
+                    ["사용량", val('[data-row="9"][data-col="B"]'), val('[data-row="9"][data-col="C"]'), val('[data-row="9"][data-col="D"]'), val('[data-row="9"][data-col="E"]'), val('[data-row="9"][data-col="F"]'), val('[data-row="9"][data-col="G"]'), "사용량 D (788mm):", val('#statUsageD'), "", "A", "D"],
+                    // 행 13 (index 12)
+                    ["사용 후 잔량", val('[data-row="10"][data-col="B"]'), val('[data-row="10"][data-col="C"]'), val('[data-row="10"][data-col="D"]'), val('[data-row="10"][data-col="E"]'), val('[data-row="10"][data-col="F"]'), val('[data-row="10"][data-col="G"]'), "", "", "", val('#sideChulgoA'), val('#sideChulgoD')]
                 ];
 
                 const wb = XLSX.utils.book_new();
@@ -345,30 +360,52 @@
 
                 // 화면에 맞춘 셀 병합(Merge) 설정
                 ws['!merges'] = [
-                    { s: {r: 0, c: 7}, e: {r: 0, c: 8} }, // 특집 헤더 병합
-                    { s: {r: 1, c: 7}, e: {r: 1, c: 8} }, // 메모 입력칸
-                    { s: {r: 2, c: 0}, e: {r: 7, c: 0} }, // "완 롤" 세로 병합 (행 2~7)
-                    { s: {r: 2, c: 7}, e: {r: 2, c: 8} }, // 특집 우측 빈칸 병합
-                    { s: {r: 6, c: 7}, e: {r: 6, c: 8} },
-                    { s: {r: 7, c: 7}, e: {r: 7, c: 8} },
-                    { s: {r: 10, c: 7}, e: {r: 10, c: 8} }, // 맨 우하단
-                    // 미니 테이블 제목 셀 병합
-                    { s: {r: 12, c: 3}, e: {r: 12, c: 4} },
-                    { s: {r: 12, c: 5}, e: {r: 12, c: 6} },
-                    { s: {r: 12, c: 7}, e: {r: 12, c: 8} }
+                    { s: {r: 0, c: 7}, e: {r: 0, c: 11} }, // 1행 H~L 날짜 병합
+                    { s: {r: 2, c: 7}, e: {r: 2, c: 8} },  // 특집 헤더 병합 (H3:I3)
+                    { s: {r: 3, c: 7}, e: {r: 3, c: 8} },  // 메모 입력칸 병합 (H4:I4)
+                    { s: {r: 4, c: 0}, e: {r: 9, c: 0} },  // "완 롤" 세로 병합 (행 5~10 / A5:A10)
+                    
+                    // 특집 빈칸 우측 병합 처리
+                    { s: {r: 4, c: 7}, e: {r: 4, c: 8} },
+                    { s: {r: 8, c: 7}, e: {r: 8, c: 8} },
+                    { s: {r: 9, c: 7}, e: {r: 9, c: 8} },
+                    { s: {r: 12, c: 7}, e: {r: 12, c: 8} },
+                    
+                    // 우측 미니 테이블 3개 제목 셀 병합
+                    { s: {r: 2, c: 10}, e: {r: 2, c: 11} }, // 완롤 잔량 (K3:L3)
+                    { s: {r: 6, c: 10}, e: {r: 6, c: 11} }, // 급지 재고 (K7:L7)
+                    { s: {r: 10, c: 10}, e: {r: 10, c: 11} } // 급지 출고 (K11:L11)
                 ];
 
-                // 열(Column) 너비 강제 지정
+                // 💡 열(Column) 너비 엑셀 표준 수치(wch) 적용
                 ws['!cols'] = [
-                    {wpx: 110}, {wpx: 85}, {wpx: 85}, {wpx: 85}, {wpx: 85}, {wpx: 85}, {wpx: 85}, {wpx: 150}, {wpx: 120}
+                    {wch: 13},  // A
+                    {wch: 9},   // B
+                    {wch: 9},   // C
+                    {wch: 9},   // D
+                    {wch: 9},   // E
+                    {wch: 9},   // F
+                    {wch: 9},   // G
+                    {wch: 20},  // H
+                    {wch: 17},  // I
+                    {wch: 1.3}, // J (여백)
+                    {wch: 10},  // K
+                    {wch: 10}   // L
                 ];
 
-                // 디자인/스타일 적용 (선 굵기, 색상 등)
+                // 💡 행(Row) 높이 수치 적용
+                ws['!rows'] = [
+                    {hpt: 35}, // 1행
+                    {hpt: 15}, // 2행 (빈줄)
+                    {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25}, // 3~7행
+                    {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25}, {hpt: 25} // 8~13행
+                ];
+
+                // 디자인/스타일 적용
                 const thickBorder = { style: 'medium', color: {rgb: "000000"} };
-                const range = XLSX.utils.decode_range(ws['!ref']);
                 
-                for (let R = range.s.r; R <= range.e.r; R++) {
-                    for (let C = range.s.c; C <= range.e.c; C++) {
+                for (let R = 0; R <= 12; R++) {
+                    for (let C = 0; C <= 11; C++) {
                         const cell_ref = XLSX.utils.encode_cell({c: C, r: R});
                         if (!ws[cell_ref]) ws[cell_ref] = {t: 's', v: ''};
 
@@ -376,53 +413,91 @@
                         let style = {
                             font: { name: "맑은 고딕", sz: 11, color: {rgb: "000000"} },
                             alignment: { vertical: "center", horizontal: "center" },
-                            border: {
-                                top: {style: 'thin', color: {rgb: "8e8e93"}}, bottom: {style: 'thin', color: {rgb: "8e8e93"}},
-                                left: {style: 'thin', color: {rgb: "8e8e93"}}, right: {style: 'thin', color: {rgb: "8e8e93"}}
-                            },
+                            border: {},
                             fill: { fgColor: {rgb: "ffffff"} }
                         };
 
-                        // 빈 행(11번째) 및 표 범위 바깥 영역은 선 없음 처리
-                        if (R === 11 || (R >= 12 && C < 3)) {
-                             style.border = {};
-                        } else {
-                             // 바탕색 처리 (구분, 타이틀 라인)
-                             if (R === 0 || (C === 0 && R <= 10) || R === 12) {
-                                 style.fill = { fgColor: {rgb: "f5f5f7"} };
-                             }
-
-                             // 두꺼운 외곽선 디자인 (테이블 테두리)
-                             if (R === 0) style.border.top = thickBorder;
-                             if (R === 10) style.border.bottom = thickBorder;
-                             if (R === 7 && C <= 6) style.border.bottom = thickBorder;
-                             if (C === 0) style.border.left = thickBorder;
-                             if (C === 6) style.border.right = thickBorder;
-                             if (C === 8 && R <= 10) style.border.right = thickBorder;
-                             if (R === 0 && C >= 7) style.border.top = thickBorder;
-
-                             // 하단 사이드 테이블 디자인 처리
-                             if (R === 12) style.border.top = thickBorder;
-                             if (R === 14 && C >= 3) style.border.bottom = thickBorder;
-                             if (R >= 12 && C === 3) style.border.left = thickBorder;
-                             if (R >= 12 && C === 8) style.border.right = thickBorder;
-                        }
-
-                        // 진하게(Bold) 표시
-                        if (R === 8 || R === 9 || (R >= 12 && R <= 13) || C === 0) {
+                        // 1행 날짜 영역 스타일링
+                        if (R === 0 && C >= 7 && C <= 11) {
+                            style.font.sz = 14;
                             style.font.bold = true;
+                            style.alignment.horizontal = "right"; // 우측 정렬
                         }
 
-                        // 특집 영역 (우측 정렬 및 중간선 제거로 병합처럼 보이게)
-                        if (C === 7 && R >= 3 && R <= 9) {
-                             style.alignment.horizontal = "right";
-                             style.border.right = {}; 
-                             if(R!==8 && R!==9) style.border.left = {}; 
-                             style.border.top = {}; style.border.bottom = {};
+                        // 빈칸 스킵 (2행 및 J열)
+                        if (R === 1 || C === 9) {
+                            cell.s = style;
+                            continue;
                         }
-                        if (C === 8 && R >= 3 && R <= 9) {
-                             if(R!==8 && R!==9) style.border.left = {};
-                             style.border.top = {}; style.border.bottom = {};
+
+                        // ===============================================
+                        // 메인 테이블 디자인 (A열 ~ I열 / 3행 ~ 13행)
+                        // ===============================================
+                        if (C <= 8 && R >= 2) {
+                            // 기본 얇은 선 적용
+                            style.border = {
+                                top: {style: 'thin', color: {rgb: "8e8e93"}}, bottom: {style: 'thin', color: {rgb: "8e8e93"}},
+                                left: {style: 'thin', color: {rgb: "8e8e93"}}, right: {style: 'thin', color: {rgb: "8e8e93"}}
+                            };
+
+                            // 배경색 및 폰트 굵기 처리
+                            if (R === 2 || C === 0) style.fill = { fgColor: {rgb: "f5f5f7"} };
+                            if (R === 10 || R === 11 || C === 0 || R === 2) style.font.bold = true;
+
+                            // 두꺼운 외곽선 디자인
+                            if (R === 2) style.border.top = thickBorder; // 표 상단
+                            if (R === 12) style.border.bottom = thickBorder; // 표 하단
+                            if (C === 0) style.border.left = thickBorder; // 표 좌측
+                            if (C === 6 || C === 8) style.border.right = thickBorder; // G, I열 우측 구분선
+                            if (R === 9 && C <= 6) style.border.bottom = thickBorder; // 사용 전 합계 위
+
+                            // [특집 구간 윤곽선 제거 로직]
+                            if (C >= 7 && C <= 8) {
+                                // 1. 사용량 총계, 실사용량, 증감 (행 6~8 / idx 5~7) 가로선 제거
+                                if (R === 5) style.border.bottom = {};
+                                if (R === 6) { style.border.top = {}; style.border.bottom = {}; }
+                                if (R === 7) style.border.top = {};
+
+                                // 2. 사용량 A, 사용량 D (행 11~12 / idx 10~11) 가로선 제거
+                                if (R === 10) style.border.bottom = {};
+                                if (R === 11) style.border.top = {};
+
+                                // 특집 라벨 우측 정렬
+                                if (C === 7 && R >= 5 && R <= 11) style.alignment.horizontal = "right";
+
+                                // 병합된 빈칸 좌우 윤곽선 정리
+                                if (C === 7 && [4, 8, 9, 12].includes(R)) style.border.right = {};
+                                if (C === 8 && [4, 8, 9, 12].includes(R)) style.border.left = {};
+                            }
+                        }
+
+                        // ===============================================
+                        // 우측 미니 테이블 3개 디자인 (K열, L열 / 지정된 블록들)
+                        // ===============================================
+                        if (C >= 10 && C <= 11) {
+                            const inBlock1 = R >= 2 && R <= 4;  // 완롤 잔량
+                            const inBlock2 = R >= 6 && R <= 8;  // 급지 재고
+                            const inBlock3 = R >= 10 && R <= 12; // 급지 출고
+
+                            if (inBlock1 || inBlock2 || inBlock3) {
+                                style.border = {
+                                    top: {style: 'thin', color: {rgb: "8e8e93"}}, bottom: {style: 'thin', color: {rgb: "8e8e93"}},
+                                    left: {style: 'thin', color: {rgb: "8e8e93"}}, right: {style: 'thin', color: {rgb: "8e8e93"}}
+                                };
+
+                                // 제목칸 바탕색/글씨
+                                if (R === 2 || R === 6 || R === 10) { style.fill = { fgColor: {rgb: "f5f5f7"} }; style.font.bold = true; }
+                                // 서브 제목칸 (A, D)
+                                if (R === 3 || R === 7 || R === 11) { style.fill = { fgColor: {rgb: "fafafc"} }; }
+                                // 재고/출고값 굵게
+                                if ((inBlock2 || inBlock3) && (R === 8 || R === 12)) { style.font.bold = true; }
+
+                                // 3x2 블록 테두리를 두껍게
+                                if (R === 2 || R === 6 || R === 10) style.border.top = thickBorder;
+                                if (R === 4 || R === 8 || R === 12) style.border.bottom = thickBorder;
+                                if (C === 10) style.border.left = thickBorder;
+                                if (C === 11) style.border.right = thickBorder;
+                            }
                         }
 
                         cell.s = style;
@@ -443,14 +518,12 @@
 
                 XLSX.utils.book_append_sheet(wb, ws, "일지");
 
-                // 규칙에 따른 파일명 지정하여 다운로드
                 const fileName = `3공장_급지일지_${state.currentDate}.xlsx`;
                 XLSX.writeFile(wb, fileName);
                 
             } catch (err) {
                 alert("엑셀 생성 중 오류가 발생했습니다: " + err.message);
             } finally {
-                // 저장 완료 후 버튼 원상 복구
                 elements.excelBtn.innerHTML = btnInner;
                 elements.excelBtn.disabled = false;
             }
@@ -489,7 +562,7 @@
             elements.todayBtn = document.getElementById('gf3TodayBtn');
             elements.editBtn = document.getElementById('gf3EditBtn');
             elements.saveBtn = document.getElementById('gf3SaveBtn');
-            elements.excelBtn = document.getElementById('gf3ExcelBtn'); // 엑셀 버튼 등록
+            elements.excelBtn = document.getElementById('gf3ExcelBtn');
             
             if(state.isAdmin) elements.editBtn.disabled = false;
 
@@ -544,7 +617,7 @@
             });
 
             elements.editBtn.addEventListener('click', toggleEditMode);
-            elements.excelBtn.addEventListener('click', exportToExcel); // 엑셀 버튼 이벤트 연결
+            elements.excelBtn.addEventListener('click', exportToExcel);
 
             elements.saveBtn.addEventListener('click', async () => {
                 if (!state.isEditMode) return;
