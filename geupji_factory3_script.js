@@ -574,6 +574,37 @@
                     }
                 }
 
+                const clearVerticalBorder = (cellRef, side) => {
+                    const cell = ws[cellRef];
+                    if (!cell || !cell.s) return;
+                    cell.s.border = cell.s.border || {};
+                    cell.s.border[side] = {};
+                };
+
+                // Final user-specified adjustments.
+                [2, 3].forEach((r) => {
+                    for (let c = 0; c <= 8; c++) {
+                        applyExportBorder(XLSX.utils.encode_cell({ c, r }), { bottom: exportThickBorder });
+                    }
+                });
+
+                [2, 6, 10].forEach((r) => {
+                    for (let c = 10; c <= 11; c++) {
+                        applyExportBorder(XLSX.utils.encode_cell({ c, r }), { bottom: exportThickBorder });
+                    }
+                });
+
+                for (let r = 2; r <= 12; r++) {
+                    applyExportBorder(XLSX.utils.encode_cell({ c: 0, r }), { right: exportThickBorder });
+                    applyExportBorder(XLSX.utils.encode_cell({ c: 6, r }), { right: exportThickBorder });
+                    applyExportBorder(XLSX.utils.encode_cell({ c: 8, r }), { right: exportThickBorder });
+                }
+
+                for (let r = 4; r <= 11; r++) {
+                    clearVerticalBorder(XLSX.utils.encode_cell({ c: 7, r }), 'right');
+                    clearVerticalBorder(XLSX.utils.encode_cell({ c: 8, r }), 'left');
+                }
+
                 ws['!pageSetup'] = {
                     orientation: 'landscape', // 가로 방향 출력
                     fitToWidth: 1,           // 한 페이지 너비에 맞춤
