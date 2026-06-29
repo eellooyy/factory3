@@ -1,4 +1,4 @@
-/* geupji_factory3_style.css */
+/* factory3.css — 3공장 공통 스타일 */
 
 /* 기본 문서 초기화 및 배경설정 */
 body {
@@ -14,23 +14,20 @@ body {
 }
 
 /* PC에서 너무 넓게 퍼지지 않도록 max-width 지정 및 중앙 정렬 */
-.gf3-wrapper { 
-    display: flex; 
-    flex-direction: column; 
-    gap: 16px; 
-    padding: 10px 0; 
-    width: 100%; 
-    max-width: 1200px; 
-    margin: 0 auto; 
+.gf3-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 10px 0;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
-/* 💡 헤더 영역 (드롭다운을 위해 z-index 추가) */
+/* 헤더 영역 */
 .gf3-header { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 12px 20px; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); z-index: 100; position: relative; }
 .gf3-main-title { font-size: 20px; font-weight: 700; color: #1d1d1f; letter-spacing: -0.5px; }
 
-/* =========================================
-   드롭다운 메뉴 스타일 (신규 추가)
-   ========================================= */
 .gf3-title-wrap {
     display: flex;
     align-items: center;
@@ -51,13 +48,13 @@ body {
 }
 .gf3-dropdown {
     position: absolute;
-    top: 45px; /* 타이틀 바로 아래 */
+    top: 45px;
     left: 0;
     background: #fff;
     border-radius: 10px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.15);
     width: 260px;
-    display: none; /* 평소엔 숨김 */
+    display: none;
     flex-direction: column;
     overflow: hidden;
     z-index: 1000;
@@ -86,7 +83,6 @@ body {
     color: #007AFF;
     background: #e8f4fd;
 }
-/* ========================================= */
 
 .gf3-controls { display: flex; align-items: center; gap: 8px; }
 .gf3-nav-group { display: flex; align-items: center; background: #f5f5f7; border-radius: 20px; padding: 4px; }
@@ -105,7 +101,6 @@ body {
 .save-btn:not(:disabled):hover { opacity: 0.85; }
 .edit-btn:disabled, .save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* 💡 엑셀 출력 버튼 스타일 지정 (엑셀 고유의 초록색 적용) */
 .excel-btn { background: #217346; color: #fff; }
 .excel-btn:hover { background: #1e6b40; opacity: 0.9; }
 .excel-btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -113,57 +108,48 @@ body {
 /* 메인 레이아웃 */
 .gf3-layout { display: flex; align-items: flex-start; gap: 16px; width: 100%; }
 
-/* 메인 테이블 박스 */
-.gf3-main-table-box { 
-    flex: 1 1 0; 
-    min-width: 0; 
-    background: #fff; 
-    border-radius: 12px; 
-    padding: 16px; 
-    box-shadow: 0 2px 8px rgba(0,0,0,0.03); 
-    border: 1px solid #e5e5ea; 
+.gf3-main-table-box {
+    flex: 1 1 0;
+    min-width: 0;
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    border: 1px solid #e5e5ea;
 }
 
-/* 테이블 기본 속성 */
 .gf3-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .gf3-th, .gf3-td { border: 1px solid #d2d2d7; height: 38px; vertical-align: middle; padding: 0; }
 .gf3-th { background: #f5f5f7; font-size: 13px; font-weight: 600; color: #1d1d1f; text-align: center; }
 .row-title { background: #fafafc; color: #1d1d1f; }
 .calc-row { color: #1d1d1f; }
 
-/* 두꺼운 구분선 디자인 */
 .border-outer { border: 2px solid #8e8e93 !important; }
 .border-right-thick { border-right: 2px solid #8e8e93 !important; }
 .border-top-thick th, .border-top-thick td { border-top: 2px solid #8e8e93 !important; }
 .border-bottom-thick th, .border-bottom-thick td { border-bottom: 2px solid #8e8e93 !important; }
 
-/* 특집 영역 */
 .special-cell { border-top: none !important; border-bottom: none !important; border-left: none !important; background: #ffffff; }
 .special-cell.bottom-border { border-bottom: 1px solid #d2d2d7 !important; }
 .special-label { text-align: right; padding-right: 8px; font-size: 13px; font-weight: 600; color: #1d1d1f; background: transparent; border-right: none !important; }
 
-/* 폼 인풋 */
 .gf3-input { width: 100%; height: 100%; border: none; outline: none; background: transparent; text-align: center; padding: 0 8px; font-size: 14px; color: #1d1d1f; box-sizing: border-box; }
 .gf3-input::-webkit-outer-spin-button, .gf3-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .fw-bold { font-weight: bold; }
 
-/* 모드별 셀 배경색 */
 .gf3-td.readonly { background: #fbfbfd; }
 .gf3-td.editable { background: #ffffff; transition: background-color 0.3s; }
 .gf3-wrapper.edit-mode .gf3-td.editable { background-color: #fff9e6 !important; }
 .gf3-wrapper.edit-mode .gf3-td.editable .gf3-input:focus { background-color: #fff2cc !important; }
 
-/* 우측 사이드 패널 기본 설정 */
 .gf3-side-panel { width: 180px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
 .gf3-box { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); border: 1px solid #e5e5ea; }
 .gf3-box-header { font-size: 14px; font-weight: 700; color: #1d1d1f; text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f2f2f7; }
 
-/* 사이드 패널 미니 테이블 */
 .mini-table { min-width: 0 !important; width: 100%; }
 .mini-table th { font-size: 12px; height: 30px; }
 .mini-table td { height: 34px; }
 
-/* 반응형 레이아웃 설정 (1050px 이하) */
 @media (max-width: 1050px) {
     .gf3-layout { flex-direction: column; }
     .gf3-side-panel { width: 100%; flex-direction: row; gap: 10px; }

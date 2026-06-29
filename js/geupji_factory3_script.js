@@ -6,28 +6,13 @@
     const supabaseKey = 'sb_publishable_ir-mHSsX6SSIQwHerkLbfA_2qCOP3KW'; 
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    let state = { currentDate: null, isEditMode: false, fp: null, isAdmin: false, prevWanA: 0, prevWanD: 0 }; 
-    let elements = {};
+    let state = { prevWanA: 0, prevWanD: 0 };
+    let headerApi = null;
 
     const FACTOR_788 = 571;
     const FACTOR_1576 = 1143;
 
     const utils = {
-        getTodayStr: () => {
-            const d = new Date();
-            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        },
-        formatKoDate: (str) => {
-            if(!str) return "";
-            const d = new Date(str);
-            const days = ['일','월','화','수','목','금','토'];
-            return `${d.getFullYear()}년 ${String(d.getMonth()+1).padStart(2,'0')}월 ${String(d.getDate()).padStart(2,'0')}일 (${days[d.getDay()]})`;
-        },
-        addDays: (dateStr, days) => {
-            const d = new Date(dateStr);
-            d.setDate(d.getDate() + days);
-            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        },
         parseNum: (val) => {
             if (!val) return 0;
             return parseInt(String(val).replace(/[^0-9.-]+/g, "")) || 0;
@@ -37,15 +22,8 @@
         }
     };
 
-    function confirmLeaveEditMode() {
-        if (state.isEditMode) {
-            return confirm("저장되지 않은 변경사항이 있습니다. 나가시겠습니까?");
-        }
-        return true;
-    }
-
     async function loadData(dateStr) {
-        if(state.isEditMode) toggleEditMode(); 
+        if (headerApi && headerApi.isEditMode()) headerApi.toggleEditMode();
         
         try {
             const { data, error } = await supabase
@@ -105,7 +83,7 @@
             
             const cols = ['B', 'C', 'D', 'E', 'F', 'G'];
             const missingStartBalCols = cols.filter(col => !loadedStartBalCols.has(col));
-            const prevDate = utils.addDays(dateStr, -1);
+            const prevDate = Factory3Utils.addDays(dateStr, -1);
             const { data: prevData, error: prevError } = await supabase
                 .from('factory3_geupji_real')
                 .select('*')
@@ -221,7 +199,7 @@
     }
 
     function bindInputFormatters() {
-        elements.wrapper.querySelectorAll('.target-calc, #sideWanA, #sideWanD, #statTotalUsage').forEach(input => {
+        headerApi.elements.wrapper.querySelectorAll('.target-calc, #sideWanA, #sideWanD, #statTotalUsage').forEach(input => {
             input.addEventListener('focus', function() {
                 if(this.readOnly) return;
                 let v = utils.parseNum(this.value);
@@ -252,7 +230,7 @@
     }
 
     function bindKeyboardNavigation() {
-        elements.wrapper.addEventListener('keydown', function(e) {
+        headerApi.elements.wrapper.addEventListener('keydown', function(e) {
             const target = e.target;
             if (!target.classList.contains('gf3-input')) return;
 
@@ -278,7 +256,7 @@
                 }
                 if (nextRow >= 1 && nextRow <= 10 && nextColIdx >= 0 && nextColIdx < cols.length) {
                     const nextCol = cols[nextColIdx];
-                    const nextInput = elements.wrapper.querySelector(`.gf3-input[data-row="${nextRow}"][data-col="${nextCol}"]`);
+                    const nextInput = headerApi.elements.wrapper.querySelector(`.gf3-input[data-row="${nextRow}"][data-col="${nextCol}"]`);
                     if (nextInput && !nextInput.readOnly) {
                         nextInput.focus(); nextInput.select();
                     }
@@ -287,42 +265,23 @@
         });
     }
 
-    function toggleEditMode() {
-        if (!state.isAdmin) return; 
-        state.isEditMode = !state.isEditMode;
-        
-        if (state.isEditMode) {
-            elements.wrapper.classList.add('edit-mode');
-            elements.editBtn.textContent = '보기';
-            elements.saveBtn.disabled = false;
-            elements.wrapper.querySelectorAll('.gf3-td.editable .gf3-input').forEach(input => input.readOnly = false);
-        } else {
-            elements.wrapper.classList.remove('edit-mode');
-            elements.editBtn.textContent = '수정';
-            elements.saveBtn.disabled = true;
-            elements.wrapper.querySelectorAll('.gf3-td.editable .gf3-input').forEach(input => input.readOnly = true);
-        }
-    }
-
-    // ==========================================
-    // 💡 엑셀 출력 기능 구현
-    // ==========================================
     function exportToExcel() {
         if (!window.XLSX) {
             alert("엑셀 모듈을 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.");
             return;
         }
 
-        const btnInner = elements.excelBtn.innerHTML;
-        elements.excelBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px; margin-right: 4px;">hourglass_empty</span>처리중...';
-        elements.excelBtn.disabled = true;
+        const excelBtn = headerApi.elements.excelBtn;
+        const btnInner = excelBtn.innerHTML;
+        excelBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px; margin-right: 4px;">hourglass_empty</span>처리중...';
+        excelBtn.disabled = true;
 
         setTimeout(() => {
             try {
                 const val = (selector) => { const el = document.querySelector(selector); return el ? el.value : ""; };
+                const currentDate = headerApi.getCurrentDate();
 
-                // 날짜 생성
-                const dateObj = new Date(state.currentDate);
+                const dateObj = new Date(currentDate);
                 const dayNames = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
                 const formattedExcelDate = `${dateObj.getFullYear()}년 ${dateObj.getMonth()+1}월 ${dateObj.getDate()}일 ${dayNames[dateObj.getDay()]}`;
 
@@ -350,12 +309,10 @@
                     { s: {r: 2, c: 7}, e: {r: 2, c: 8} },
                     { s: {r: 3, c: 7}, e: {r: 3, c: 8} },
                     { s: {r: 4, c: 0}, e: {r: 9, c: 0} },
-                    
                     { s: {r: 4, c: 7}, e: {r: 4, c: 8} },
                     { s: {r: 8, c: 7}, e: {r: 8, c: 8} },
                     { s: {r: 9, c: 7}, e: {r: 9, c: 8} },
                     { s: {r: 12, c: 7}, e: {r: 12, c: 8} },
-                    
                     { s: {r: 2, c: 10}, e: {r: 2, c: 11} },
                     { s: {r: 6, c: 10}, e: {r: 6, c: 11} },
                     { s: {r: 10, c: 10}, e: {r: 10, c: 11} }
@@ -537,61 +494,38 @@
                     applyExportBorder(XLSX.utils.encode_cell({ c: 8, r }), { right: exportThickBorder });
                 }
 
-                // =====================================================================
-                // 💡 사용자가 명시적으로 요청한 '선 없음' 완벽 적용 (인접 셀 선까지 확실히 지우기)
-                // =====================================================================
                 const setNoBorder = (c, r, side) => {
                     const cellRef = XLSX.utils.encode_cell({ c, r });
                     if (ws[cellRef] && ws[cellRef].s && ws[cellRef].s.border) {
                         delete ws[cellRef].s.border[side];
                     }
-                    // '아래선 없음'일 경우 아래칸의 윗선도 지워야 화면에서 사라짐
                     if (side === 'bottom') {
                         const adjRef = XLSX.utils.encode_cell({ c, r: r + 1 });
                         if (ws[adjRef] && ws[adjRef].s && ws[adjRef].s.border) delete ws[adjRef].s.border.top;
-                    } 
-                    // '우측선 없음'일 경우 우측칸의 좌측선도 지워야 화면에서 사라짐
-                    else if (side === 'right') {
+                    } else if (side === 'right') {
                         const adjRef = XLSX.utils.encode_cell({ c: c + 1, r });
                         if (ws[adjRef] && ws[adjRef].s && ws[adjRef].s.border) delete ws[adjRef].s.border.left;
                     }
                 };
 
-                // H열(C:7), I열(C:8) / 엑셀 행번호 = r+1
-
-                // 1. H5, I5 아래선 없음 (r: 4)
                 setNoBorder(7, 4, 'bottom');
                 setNoBorder(8, 4, 'bottom');
-
-                // 2. H6 우측선 없음, I6 아래선 없음 (r: 5)
                 setNoBorder(7, 5, 'right');
                 setNoBorder(8, 5, 'bottom');
-
-                // 3. H7 아래선 및 우측선 없음, I7 아래선 없음 (r: 6)
                 setNoBorder(7, 6, 'bottom');
                 setNoBorder(7, 6, 'right');
                 setNoBorder(8, 6, 'bottom');
-
-                // 4. H8 아래선 및 우측선 없음, I8 아래선 없음 (r: 7)
                 setNoBorder(7, 7, 'bottom');
                 setNoBorder(7, 7, 'right');
                 setNoBorder(8, 7, 'bottom');
-
-                // 5. H9, I9 아래선 없음 (r: 8)
                 setNoBorder(7, 8, 'bottom');
                 setNoBorder(8, 8, 'bottom');
-
-                // 6. H11 아래선 및 우측선 없음, I11 아래선 없음 (r: 10)
                 setNoBorder(7, 10, 'bottom');
                 setNoBorder(7, 10, 'right');
                 setNoBorder(8, 10, 'bottom');
-
-                // 7. H12 아래선 및 우측선 없음, I12 아래선 없음 (r: 11)
                 setNoBorder(7, 11, 'bottom');
                 setNoBorder(7, 11, 'right');
                 setNoBorder(8, 11, 'bottom');
-                // =====================================================================
-
 
                 ws['!pageSetup'] = {
                     orientation: 'landscape', 
@@ -605,164 +539,84 @@
 
                 XLSX.utils.book_append_sheet(wb, ws, "일지");
 
-                const fileName = `3공장_급지일지_${state.currentDate}.xlsx`;
+                const fileName = `3공장_급지일지_${currentDate}.xlsx`;
                 XLSX.writeFile(wb, fileName);
                 
             } catch (err) {
                 alert("엑셀 생성 중 오류가 발생했습니다: " + err.message);
             } finally {
-                elements.excelBtn.innerHTML = btnInner;
-                elements.excelBtn.disabled = false;
+                excelBtn.innerHTML = btnInner;
+                excelBtn.disabled = false;
             }
         }, 100); 
     }
 
-    const GeupjiFactory3Module = {
-        init: function() {
-            const savedRole = sessionStorage.getItem('gf3_role');
+    async function handleSave() {
+        const currentDate = headerApi.getCurrentDate();
+        const rawPayloadData = [];
+        const cols = ['B', 'C', 'D', 'E', 'F', 'G'];
+        const extractVal = (el) => el ? el.value.replace(/,/g, '').replace(/kg/g, '').replace(/R\/L/g, '').trim() : "";
 
-            if (savedRole === 'admin') {
-                state.isAdmin = true;  
-            } else if (savedRole === 'readonly') {
-                state.isAdmin = false; 
-            } else {
-                const pwInput = prompt("접속 비밀번호를 입력하세요:");
-                if (pwInput === "edit0000") {
-                    state.isAdmin = true; sessionStorage.setItem('gf3_role', 'admin'); 
-                } else if (pwInput === "mk1324") {
-                    state.isAdmin = false; sessionStorage.setItem('gf3_role', 'readonly'); 
-                } else {
-                    alert("비밀번호가 올바르지 않습니다."); location.href = "about:blank"; return; 
-                }
+        cols.forEach(col => {
+            const startEl = document.querySelector(`.gf3-input[data-row="1"][data-col="${col}"]`);
+            const memoEl = document.querySelector(`.gf3-input[data-row="1"][data-col="H"]`);
+            rawPayloadData.push({ item_type: 'start_bal_1', col_id: col, value: extractVal(startEl), memo: memoEl ? memoEl.value : "" });
+
+            for (let r = 2; r <= 7; r++) {
+                const wanEl = document.querySelector(`.gf3-input[data-row="${r}"][data-col="${col}"]`);
+                rawPayloadData.push({ item_type: `wan_roll_${r}`, col_id: col, value: extractVal(wanEl), memo: "" });
             }
 
-            window.addEventListener('beforeunload', function(e) {
-                if (state.isEditMode) { e.preventDefault(); e.returnValue = ''; }
+            const endEl = document.querySelector(`.gf3-input[data-row="10"][data-col="${col}"]`);
+            rawPayloadData.push({ item_type: 'end_bal_10', col_id: col, value: extractVal(endEl), memo: "" });
+        });
+
+        rawPayloadData.push({ item_type: 'side_wan_1', col_id: 'A', value: extractVal(document.getElementById('sideWanA')), memo: "" });
+        rawPayloadData.push({ item_type: 'side_wan_1', col_id: 'D', value: extractVal(document.getElementById('sideWanD')), memo: "" });
+        rawPayloadData.push({ item_type: 'side_geup', col_id: 'A', value: extractVal(document.getElementById('sideGeupA')), memo: "" });
+        rawPayloadData.push({ item_type: 'side_geup', col_id: 'D', value: extractVal(document.getElementById('sideGeupD')), memo: "" });
+        rawPayloadData.push({ item_type: 'stat_total_usage', col_id: 'H', value: extractVal(document.getElementById('statTotalUsage')), memo: "" });
+
+        const finalInsertData = rawPayloadData
+            .map(item => ({
+                date: currentDate, item_type: item.item_type, col_id: item.col_id,
+                value: parseInt(item.value, 10) || 0, memo: item.memo || ""
+            }))
+            .filter(item => item.value !== 0 || item.memo.trim() !== "");
+
+        try {
+            const { error: deleteError } = await supabase.from('factory3_geupji_real').delete().eq('date', currentDate);
+            if (deleteError) { alert('기존 데이터 초기화 실패: ' + deleteError.message); return; }
+
+            if (finalInsertData.length > 0) {
+                const { error: insertError } = await supabase.from('factory3_geupji_real').insert(finalInsertData);
+                if (insertError) { alert('저장 실패: ' + insertError.message); }
+                else { alert('저장 완료되었습니다.'); headerApi.toggleEditMode(); loadData(currentDate); }
+            } else {
+                alert('저장 완료되었습니다. (모든 값이 지워져 해당 날짜의 데이터가 초기화되었습니다.)');
+                headerApi.toggleEditMode(); loadData(currentDate);
+            }
+        } catch (err) {
+            alert('네트워크 오류가 발생했습니다: ' + err.message);
+        }
+    }
+
+    const GeupjiFactory3Module = {
+        init: function() {
+            headerApi = Factory3Header.init({
+                idPrefix: '',
+                onDateChange: loadData,
+                onSave: handleSave,
+                onExportExcel: exportToExcel
             });
-
-            elements.wrapper = document.querySelector('.gf3-wrapper');
-            if(!elements.wrapper) return;
-            
-            elements.dateText = document.getElementById('gf3DateText');
-            elements.prevBtn = document.getElementById('gf3PrevBtn');
-            elements.nextBtn = document.getElementById('gf3NextBtn');
-            elements.todayBtn = document.getElementById('gf3TodayBtn');
-            elements.editBtn = document.getElementById('gf3EditBtn');
-            elements.saveBtn = document.getElementById('gf3SaveBtn');
-            elements.excelBtn = document.getElementById('gf3ExcelBtn');
-            
-            if(state.isAdmin) elements.editBtn.disabled = false;
-
-            const today = utils.getTodayStr();
-            state.currentDate = utils.addDays(today, -1);
-            elements.dateText.innerText = utils.formatKoDate(state.currentDate);
-
-            let justClosed = false;
-
-            state.fp = flatpickr("#gf3Flatpickr", {
-                locale: "ko", dateFormat: "Y-m-d", defaultDate: state.currentDate,
-                positionElement: elements.dateText, position: "auto center", clickOpens: false, 
-                onReady: function(selectedDates, dateStr, instance) { instance.calendarContainer.style.marginTop = "10px"; },
-                onChange: (dates, str) => {
-                    if (!confirmLeaveEditMode()) { state.fp.setDate(state.currentDate, false); return; }
-                    state.currentDate = str;
-                    elements.dateText.innerText = utils.formatKoDate(str);
-                    loadData(str);
-                },
-                onClose: () => { justClosed = true; setTimeout(() => { justClosed = false; }, 200); }
-            });
-
-            elements.dateText.addEventListener('click', (e) => {
-                e.stopPropagation(); if (justClosed) return; 
-                if (state.fp) state.fp.toggle();
-            });
-            
-            elements.prevBtn.addEventListener('click', () => {
-                if (!confirmLeaveEditMode()) return; 
-                const prev = utils.addDays(state.currentDate, -1);
-                state.fp.setDate(prev); state.currentDate = prev;
-                elements.dateText.innerText = utils.formatKoDate(prev);
-                loadData(prev);
-            });
-
-            elements.nextBtn.addEventListener('click', () => {
-                if (!confirmLeaveEditMode()) return; 
-                const next = utils.addDays(state.currentDate, 1);
-                state.fp.setDate(next); state.currentDate = next;
-                elements.dateText.innerText = utils.formatKoDate(next);
-                loadData(next);
-            });
-
-            elements.todayBtn.addEventListener('click', () => {
-                const today = utils.getTodayStr();
-                if (state.currentDate !== today) {
-                    if (!confirmLeaveEditMode()) return; 
-                    state.fp.setDate(today); state.currentDate = today;
-                    elements.dateText.innerText = utils.formatKoDate(today);
-                    loadData(today);
-                }
-            });
-
-            elements.editBtn.addEventListener('click', toggleEditMode);
-            elements.excelBtn.addEventListener('click', exportToExcel);
-
-            elements.saveBtn.addEventListener('click', async () => {
-                if (!state.isEditMode) return;
-                
-                const rawPayloadData = [];
-                const cols = ['B', 'C', 'D', 'E', 'F', 'G'];
-                const extractVal = (el) => el ? el.value.replace(/,/g, '').replace(/kg/g, '').replace(/R\/L/g, '').trim() : "";
-
-                cols.forEach(col => {
-                    const startEl = document.querySelector(`.gf3-input[data-row="1"][data-col="${col}"]`);
-                    const memoEl = document.querySelector(`.gf3-input[data-row="1"][data-col="H"]`);
-                    rawPayloadData.push({ item_type: 'start_bal_1', col_id: col, value: extractVal(startEl), memo: memoEl ? memoEl.value : "" });
-                    
-                    for (let r = 2; r <= 7; r++) {
-                        const wanEl = document.querySelector(`.gf3-input[data-row="${r}"][data-col="${col}"]`);
-                        rawPayloadData.push({ item_type: `wan_roll_${r}`, col_id: col, value: extractVal(wanEl), memo: "" });
-                    }
-                    
-                    const endEl = document.querySelector(`.gf3-input[data-row="10"][data-col="${col}"]`);
-                    rawPayloadData.push({ item_type: 'end_bal_10', col_id: col, value: extractVal(endEl), memo: "" });
-                });
-
-                rawPayloadData.push({ item_type: 'side_wan_1', col_id: 'A', value: extractVal(document.getElementById('sideWanA')), memo: "" });
-                rawPayloadData.push({ item_type: 'side_wan_1', col_id: 'D', value: extractVal(document.getElementById('sideWanD')), memo: "" });
-                rawPayloadData.push({ item_type: 'side_geup', col_id: 'A', value: extractVal(document.getElementById('sideGeupA')), memo: "" });
-                rawPayloadData.push({ item_type: 'side_geup', col_id: 'D', value: extractVal(document.getElementById('sideGeupD')), memo: "" });
-                rawPayloadData.push({ item_type: 'stat_total_usage', col_id: 'H', value: extractVal(document.getElementById('statTotalUsage')), memo: "" });
-
-                const finalInsertData = rawPayloadData
-                    .map(item => ({
-                        date: state.currentDate, item_type: item.item_type, col_id: item.col_id,
-                        value: parseInt(item.value, 10) || 0, memo: item.memo || ""
-                    }))
-                    .filter(item => item.value !== 0 || item.memo.trim() !== "");
-
-                try {
-                    const { error: deleteError } = await supabase.from('factory3_geupji_real').delete().eq('date', state.currentDate);
-                    if (deleteError) { alert('기존 데이터 초기화 실패: ' + deleteError.message); return; }
-
-                    if (finalInsertData.length > 0) {
-                        const { error: insertError } = await supabase.from('factory3_geupji_real').insert(finalInsertData);
-                        if (insertError) { alert('저장 실패: ' + insertError.message); } 
-                        else { alert('저장 완료되었습니다.'); toggleEditMode(); loadData(state.currentDate); }
-                    } else {
-                        alert('저장 완료되었습니다. (모든 값이 지워져 해당 날짜의 데이터가 초기화되었습니다.)');
-                        toggleEditMode(); loadData(state.currentDate);
-                    }
-                } catch (err) {
-                    alert('네트워크 오류가 발생했습니다: ' + err.message);
-                }
-            });
+            if (!headerApi) return;
 
             bindInputFormatters();
-            bindKeyboardNavigation(); 
-            loadData(state.currentDate);
+            bindKeyboardNavigation();
+            loadData(headerApi.getCurrentDate());
         },
         destroy: function() {
-            if (state.fp) { state.fp.destroy(); state.fp = null; }
+            if (headerApi) headerApi.destroy();
         }
     };
     window.GeupjiFactory3Module = GeupjiFactory3Module;
