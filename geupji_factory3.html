@@ -14,13 +14,31 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    
+    <script src="common_ui.js" defer></script>
 </head>
 <body>
+
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+<nav class="gf3-sidebar" id="sidebar">
+    <div class="gf3-sidebar-header">메뉴</div>
+    <ul class="gf3-sidebar-menu">
+        <li class="active"><a href="geupji_factory3.html">3공장 일지</a></li>
+        <li><a href="factory3_io.html">3공장 입출고 대장</a></li>
+    </ul>
+</nav>
 
 <div class="gf3-wrapper" data-page-module="GeupjiFactory3Module" data-is-admin="1">
     
     <div class="gf3-header">
-        <span class="gf3-main-title">3공장 일지</span>
+        <div style="display: flex; align-items: center;">
+            <button class="hamburger-btn" id="hamburgerBtn" title="메뉴 열기">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+            <span class="gf3-main-title">3공장 일지</span>
+        </div>
         
         <div class="gf3-controls">
             <div class="gf3-nav-group">
