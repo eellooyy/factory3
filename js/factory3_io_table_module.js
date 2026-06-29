@@ -6,6 +6,7 @@ const Factory3IoTableModule = (function() {
     let isSyncing = false;
     let activeCell = null;
 
+    // 초기화 함수
     function init() {
         scrollAreas = [
             document.getElementById('scrollAreaLeft'),
@@ -14,14 +15,11 @@ const Factory3IoTableModule = (function() {
         ].filter(el => el !== null);
 
         setupScrollSync();
-        renderMockData(); // 현재 월을 기준으로 데이터 생성
+        renderMockData(); // 추후 Supabase 연동 시 이 함수를 실제 데이터 패치 로직으로 교체
         setupInteractions();
-        
-        // 렌더링 완료 후 어제 날짜로 스크롤 이동
-        setTimeout(scrollToYesterday, 100); 
     }
 
-    // 1. 패널 3개 스크롤 동기화
+    // 1. 패널 3개 스크롤 동기화 로직
     function setupScrollSync() {
         scrollAreas.forEach(area => {
             area.addEventListener('scroll', function(e) {
@@ -37,13 +35,13 @@ const Factory3IoTableModule = (function() {
                 
                 window.requestAnimationFrame(() => {
                     isSyncing = false;
-                    updateCursorPosition(); 
+                    updateCursorPosition(); // 스크롤 될 때 커서도 같이 따라다니게 함
                 });
             });
         });
     }
 
-    // 2. 가상의 테이블 데이터 (새로운 헤더 양식에 맞춤 + 현재 달 기준)
+    // 2. 가상의 테이블 데이터 렌더링 (UI/UX 및 불일치 경고 확인용)
     function renderMockData() {
         const tbodyLeft = document.getElementById('tbodyLeft');
         const tbodyMid = document.getElementById('tbodyMid');
@@ -51,54 +49,49 @@ const Factory3IoTableModule = (function() {
 
         if(!tbodyLeft || !tbodyMid || !tbodyRight) return;
 
-        let leftHTML = ''; let midHTML = ''; let rightHTML = '';
+        let leftHTML = '';
+        let midHTML = '';
+        let rightHTML = '';
 
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
-        const todayDate = now.getDate();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const today = new Date().getDate();
         
-        for (let i = 1; i <= daysInMonth; i++) {
-            const isToday = i === todayDate;
+        // 임의로 31일까지의 행을 생성
+        for (let i = 1; i <= 31; i++) {
+            const isToday = i === today;
             const rowClass = isToday ? 'gf3-row-today' : '';
-            const currDateObj = new Date(year, month, i);
-            const dayOfWeek = currDateObj.getDay(); 
+            const dayOfWeek = new Date(2023, 9, i).getDay(); // 테스트용 요일 (23년 10월 기준)
             let dateColorClass = '';
             
             if(dayOfWeek === 0) dateColorClass = 'gf3-sun';
             else if(dayOfWeek === 6) dateColorClass = 'gf3-sat';
 
-            // 날짜 포맷 (YYYY-MM-DD)
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-            const shortDate = `${month + 1}/${String(i).padStart(2, '0')}`;
-
-            // 완제품 A (4칸), 완제품 D (4칸, 첫 칸은 gf3-sep)
-            leftHTML += `<tr class="${rowClass}" data-date="${dateStr}">
-                <td class="gf3-date-td ${dateColorClass}">${shortDate}</td>
-                <td class="gf3-data-cell">10</td><td class="gf3-data-cell">5</td><td class="gf3-data-cell">2</td><td class="gf3-data-cell">13</td>
-                <td class="gf3-data-cell gf3-sep">20</td><td class="gf3-data-cell">10</td><td class="gf3-data-cell">5</td><td class="gf3-data-cell">25</td>
+            // 왼쪽 패널 (입출고 내역)
+            leftHTML += `<tr class="${rowClass}" data-date="2023-10-${String(i).padStart(2, '0')}">
+                <td class="gf3-date-td ${dateColorClass}">10/${String(i).padStart(2, '0')}</td>
+                <td class="gf3-data-cell">100</td>
+                <td class="gf3-data-cell">50</td>
+                <td class="gf3-data-cell">50</td>
             </tr>`;
 
+            // 매체 합계와 용지 합계 생성 (5일마다 일부러 수치를 틀리게 하여 UI 불일치 경고 디자인 확인)
             const mediaSum = 120 + i;
-            const paperSum = (i % 5 === 0) ? mediaSum + 10 : mediaSum; // 불일치 경고 테스트용
+            const paperSum = (i % 5 === 0) ? mediaSum + 10 : mediaSum; 
             const mismatchClass = (mediaSum !== paperSum) ? 'gf3-sum-mismatch' : '';
 
-            // 매체 사용량 (9칸 + 합계 1칸)
-            midHTML += `<tr class="${rowClass}" data-date="${dateStr}">
-                <td class="gf3-date-td gf3-responsive-date ${dateColorClass}">${shortDate}</td>
-                <td class="gf3-data-cell">30</td><td class="gf3-data-cell">40</td><td class="gf3-data-cell">70</td>
-                <td class="gf3-data-cell gf3-sep">10</td><td class="gf3-data-cell">15</td><td class="gf3-data-cell">25</td>
-                <td class="gf3-data-cell gf3-sep">95</td>
-                <td class="gf3-data-cell gf3-sep">80</td><td class="gf3-data-cell">40</td>
-                <td class="gf3-data-cell gf3-sep gf3-sum-col ${mismatchClass}">${mediaSum}</td>
+            // 중앙 패널 (매체별 사용량)
+            midHTML += `<tr class="${rowClass}" data-date="2023-10-${String(i).padStart(2, '0')}">
+                <td class="gf3-date-td gf3-responsive-date ${dateColorClass}">10/${String(i).padStart(2, '0')}</td>
+                <td class="gf3-data-cell">30</td>
+                <td class="gf3-data-cell">40</td>
+                <td class="gf3-data-cell">25</td>
+                <td class="gf3-data-cell">25</td>
+                <td class="gf3-data-cell gf3-sum-col ${mismatchClass}">${mediaSum}</td>
             </tr>`;
 
-            // 용지 사용량 (2칸)
-            rightHTML += `<tr class="${rowClass}" data-date="${dateStr}">
-                <td class="gf3-date-td gf3-responsive-date ${dateColorClass}">${shortDate}</td>
+            // 오른쪽 패널 (용지별 사용량)
+            rightHTML += `<tr class="${rowClass}" data-date="2023-10-${String(i).padStart(2, '0')}">
+                <td class="gf3-date-td gf3-responsive-date ${dateColorClass}">10/${String(i).padStart(2, '0')}</td>
                 <td class="gf3-data-cell gf3-sum-col ${mismatchClass}">${paperSum}</td>
-                <td class="gf3-data-cell">150</td>
             </tr>`;
         }
 
@@ -107,27 +100,7 @@ const Factory3IoTableModule = (function() {
         tbodyRight.innerHTML = rightHTML;
     }
 
-    // 3. 진입 시 어제 날짜로 스크롤을 가운데로 맞추는 기능
-    function scrollToYesterday() {
-        const today = new Date();
-        today.setDate(today.getDate() - 1); // 어제
-        
-        const yStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        const targetRow = document.querySelector(`#tbodyLeft tr[data-date="${yStr}"]`);
-        
-        if (targetRow && scrollAreas.length > 0) {
-            const container = scrollAreas[0];
-            const offsetTop = targetRow.offsetTop;
-            // 화면 중앙에 오도록 계산
-            const scrollPos = offsetTop - (container.clientHeight / 2) + (targetRow.clientHeight / 2);
-            
-            scrollAreas.forEach(area => {
-                area.scrollTop = scrollPos;
-            });
-        }
-    }
-
-    // 4. 클릭 하이라이트 및 글래스 커서 (Zoom 배율 버그 픽스 포함)
+    // 3. 클릭 시 줄 하이라이트 및 글래스 커서 이동 로직
     function setupInteractions() {
         const panelsOuter = document.querySelector('.gf3-panels-outer');
         if (!panelsOuter) return;
@@ -135,12 +108,15 @@ const Factory3IoTableModule = (function() {
         panelsOuter.addEventListener('click', function(e) {
             const cell = e.target.closest('td.gf3-data-cell');
             if (cell) {
+                // 이전 선택 초기화
                 if(activeCell) activeCell.classList.remove('gf3-selected-cell');
                 document.querySelectorAll('.gf3-selected-row').forEach(row => row.classList.remove('gf3-selected-row'));
 
+                // 새 셀 선택
                 activeCell = cell;
                 activeCell.classList.add('gf3-selected-cell');
                 
+                // 3패널에 분리된 같은 행 동시에 하이라이트 (날짜 data-date 이용)
                 const tr = cell.closest('tr');
                 const dateVal = tr.getAttribute('data-date');
                 if(dateVal) {
@@ -157,32 +133,3 @@ const Factory3IoTableModule = (function() {
     function moveCursorToCell(cell) {
         const cursor = document.getElementById('gf3Cursor');
         const panelsOuter = document.querySelector('.gf3-panels-outer');
-        if(!cursor || !panelsOuter || !cell) return;
-
-        const cellRect = cell.getBoundingClientRect();
-        const outerRect = panelsOuter.getBoundingClientRect();
-
-        // [중요] body에 걸린 zoom: 115% 때문에 getBoundingClientRect 좌표가 어긋나는 것을 방지하기 위해 zoom 배율 역산
-        let zoomScale = parseFloat(getComputedStyle(document.body).zoom) || 1;
-        
-        // 크롬 등 일부 브라우저에서 zoom이 적용되었을 때의 실제 오차 보정
-        const topPos = (cellRect.top - outerRect.top) / zoomScale;
-        const leftPos = (cellRect.left - outerRect.left) / zoomScale;
-        const width = cellRect.width / zoomScale;
-        const height = cellRect.height / zoomScale;
-
-        cursor.style.width = `${width}px`;
-        cursor.style.height = `${height}px`;
-        cursor.style.top = `${topPos}px`;
-        cursor.style.left = `${leftPos}px`;
-        cursor.classList.add('active');
-    }
-
-    function updateCursorPosition() {
-        if(activeCell) moveCursorToCell(activeCell);
-    }
-
-    return {
-        init: init
-    };
-})();
