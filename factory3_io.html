@@ -63,14 +63,20 @@
                         <thead class="gf3-thead-lv1">
                             <tr>
                                 <th class="gf3-date-th" rowspan="2">날짜</th>
-                                <th colspan="3">입출고 내역</th>
+                                <th colspan="4">완제품 A</th>
+                                <th colspan="4" class="gf3-sep">완제품 D</th>
                             </tr>
                         </thead>
                         <thead class="gf3-thead-lv2">
                             <tr>
+                                <th>기초</th>
                                 <th>입고</th>
                                 <th>출고</th>
-                                <th>재고</th>
+                                <th>기말</th>
+                                <th class="gf3-sep">기초</th>
+                                <th>입고</th>
+                                <th>출고</th>
+                                <th>기말</th>
                             </tr>
                         </thead>
                         <tbody id="tbodyLeft">
@@ -85,16 +91,21 @@
                         <thead class="gf3-thead-lv1">
                             <tr>
                                 <th class="gf3-date-th gf3-responsive-date" rowspan="2">날짜</th>
-                                <th colspan="4">매체별 사용량</th>
-                                <th class="gf3-sum-col" rowspan="2">매체 합계</th>
+                                <th colspan="9">매체 사용량</th>
+                                <th class="gf3-sep gf3-sum-col" rowspan="2">매체 합계<br>(kg)</th>
                             </tr>
                         </thead>
                         <thead class="gf3-thead-lv2">
                             <tr>
-                                <th>매체 A</th>
-                                <th>매체 B</th>
-                                <th>매체 C</th>
-                                <th>매체 D</th>
+                                <th>788(R)</th>
+                                <th>788(L)</th>
+                                <th>788(R/L)</th>
+                                <th class="gf3-sep">1576(R)</th>
+                                <th>1576(L)</th>
+                                <th>1576(R/L)</th>
+                                <th class="gf3-sep">합계<br>(R/L)</th>
+                                <th class="gf3-sep">788(kg)</th>
+                                <th>1576(kg)</th>
                             </tr>
                         </thead>
                         <tbody id="tbodyMid">
@@ -109,12 +120,13 @@
                         <thead class="gf3-thead-lv1">
                             <tr>
                                 <th class="gf3-date-th gf3-responsive-date" rowspan="2">날짜</th>
-                                <th>용지별 사용량</th>
+                                <th colspan="2">용지 사용 및 재고</th>
                             </tr>
                         </thead>
                         <thead class="gf3-thead-lv2">
                             <tr>
-                                <th class="gf3-sum-col">용지 합계</th>
+                                <th class="gf3-sum-col">용지합계(kg)</th>
+                                <th>실재고(kg)</th>
                             </tr>
                         </thead>
                         <tbody id="tbodyRight">
