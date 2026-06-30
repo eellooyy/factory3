@@ -480,8 +480,12 @@
 
     window.Factory3IoModule = Factory3IoModule;
 
-    document.addEventListener('DOMContentLoaded', function() {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            Factory3IoModule.init();
+        });
+    } else {
         Factory3IoModule.init();
-    });
+    }
 
 })();
