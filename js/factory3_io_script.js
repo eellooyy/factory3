@@ -115,17 +115,22 @@
         const panelEl  = document.getElementById(`f3ioScrollPanel${panelIdx}`);
         if (!cursorEl || !panelEl || !td) return;
 
-        const tableEl = panelEl.querySelector('.f3io-table');
-        if (!tableEl) return;
+        // [핵심 수정] DOM 구조상 오프셋을 역추적하여 합산하는 방식으로 변경.
+        // 스크롤이나 브라우저 렌더링에 따른 오차 없이 패널 컨테이너 기준 1px 오차없는 좌표를 산출합니다.
+        let top = 0;
+        let left = 0;
+        let current = td;
+        
+        while (current && current !== panelEl && current !== document.body) {
+            top += current.offsetTop;
+            left += current.offsetLeft;
+            current = current.offsetParent;
+        }
 
-        // 테이블 기준으로 좌표 계산 (스크롤 위치에 영향받지 않는 정확한 상대 좌표 적용)
-        const tableRect = tableEl.getBoundingClientRect();
-        const tdRect    = td.getBoundingClientRect();
-
-        cursorEl.style.width  = tdRect.width  + 'px';
-        cursorEl.style.height = tdRect.height + 'px';
-        cursorEl.style.left   = (tdRect.left - tableRect.left) + 'px';
-        cursorEl.style.top    = (tdRect.top - tableRect.top) + 'px';
+        cursorEl.style.width  = td.offsetWidth  + 'px';
+        cursorEl.style.height = td.offsetHeight + 'px';
+        cursorEl.style.left   = left + 'px';
+        cursorEl.style.top    = top + 'px';
         cursorEl.classList.add('active');
     }
 
@@ -245,13 +250,24 @@
         const activeTd = document.querySelector(`#f3ioBody${panelIdx} tr[data-date="${state.selectedDate}"] td[data-col="${state.selectedCol}"]`);
 
         if (panel && activeTd) {
-            const pRect = panel.getBoundingClientRect();
-            const tdRect = activeTd.getBoundingClientRect();
+            // 위치 추적 로직 통일 적용 (오차 방지)
+            let top = 0;
+            let current = activeTd;
+            while (current && current !== panel && current !== document.body) {
+                top += current.offsetTop;
+                current = current.offsetParent;
+            }
             
-            if (tdRect.bottom > pRect.bottom) {
-                panel.scrollTop += (tdRect.bottom - pRect.bottom + 10);
-            } else if (tdRect.top < pRect.top + 65) {
-                panel.scrollTop -= (pRect.top + 65 - tdRect.top + 10);
+            const targetTop = top;
+            const targetBottom = top + activeTd.offsetHeight;
+            const scrollTop = panel.scrollTop;
+            const panelHeight = panel.clientHeight;
+            const headerHeight = 88; // Sticky 헤더(2단) 고정 높이
+
+            if (targetBottom > scrollTop + panelHeight) {
+                panel.scrollTop = targetBottom - panelHeight + 10;
+            } else if (targetTop < scrollTop + headerHeight) {
+                panel.scrollTop = targetTop - headerHeight - 10;
             }
         }
     }
@@ -290,7 +306,8 @@
             .then(res => {
                 if (res.status === 'success') {
                     renderInitial(res.data);
-                    scrollToYesterday();
+                    // 초기 진입 시 오늘 날짜로 스크롤
+                    scrollToToday();
                 } else {
                     showError(res.message || '데이터 조회 실패');
                 }
@@ -363,7 +380,7 @@
 
         data.forEach(row => {
             const d     = new Date(row.date + 'T00:00:00');
-            const isT   = row.date === yesterdayStr();
+            const isT   = row.date === todayStr();
             const trCls = isT ? 'f3io-row-today' : '';
 
             let wdCls = '';
@@ -444,20 +461,35 @@
         });
     }
 
-    function scrollToYesterday() {
+    function scrollToToday() {
         requestAnimationFrame(() => {
-            const yest = yesterdayStr();
+            const today = todayStr();
             const panel1 = document.getElementById('f3ioScrollPanel1');
             if (!panel1) return;
-            const row = panel1.querySelector(`tr[data-date="${yest}"]`);
+            
+            let row = panel1.querySelector(`tr[data-date="${today}"]`);
+            if (!row) {
+                row = panel1.querySelector(`tr[data-date="${yesterdayStr()}"]`);
+            }
+            
             if (row) {
-                const target = row.offsetTop - panel1.clientHeight / 2 + row.offsetHeight / 2;
+                // 정확한 offsetTop 계산
+                let top = 0;
+                let current = row;
+                while (current && current !== panel1 && current !== document.body) {
+                    top += current.offsetTop;
+                    current = current.offsetParent;
+                }
+                
+                // [요청 반영] 중앙이 아닌 상단에서 1/3 지점 (약간 상단)에 위치하도록 스크롤 보정
+                const targetScroll = top - (panel1.clientHeight / 3);
+                
                 PANEL_IDS.forEach(id => {
                     const p = document.getElementById(id);
-                    if (p) p.scrollTo({ top: Math.max(0, target), behavior: 'auto' });
+                    if (p) p.scrollTo({ top: Math.max(0, targetScroll), behavior: 'auto' });
                 });
             }
-            updateDateText(yest);
+            updateDateText(today);
         });
     }
 
