@@ -142,6 +142,7 @@
    테이블
    ================================================ */
 .f3io-table {
+    table-layout: auto;
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
@@ -225,14 +226,15 @@
     background: #fff !important;
     z-index: 11;
     text-align: center;
-    min-width: 300px; /* 기존 115px -> 130px 확장 */
-    width: 300px;     /* 기존 115px -> 130px 확장 */
+    min-width: 150px !important;
+    width: 150px !important;
     border-right: 1px solid #e0e0e0 !important;
     border-bottom: 1px solid #e0e0e0 !important;
     font-size: 13px;
     font-weight: 800;
     color: #1d1d1f;
     box-sizing: border-box;
+    white-space: nowrap;
 }
 
 .f3io-date-th[rowspan] {
@@ -249,9 +251,10 @@
     border-right: 1px solid #e0e0e0 !important;
     font-size: 12px;
     font-weight: 700;
-    min-width: 300px; /* 기존 115px -> 130px 확장 */
-    width: 300px;     /* 기존 115px -> 130px 확장 */
+    min-width: 150px !important;
+    width: 150px !important;
     box-sizing: border-box;
+    white-space: nowrap;
 }
 
 .f3io-responsive-date {
