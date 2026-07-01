@@ -206,7 +206,7 @@
                 else if (row.media_name === '경인일보') dataCache[date].usage_media[3] += qty;
                 else if (row.media_name === '기독교타임즈') dataCache[date].usage_media[4] += qty;
                 else if (row.media_name === '한국대학신문') dataCache[date].usage_media[5] += qty;
-                else if (row.media_name === '카톨릭평화신문') dataCache[date].usage_media[6] += qty;
+                else if (row.media_name === '가톨릭평화신문') dataCache[date].usage_media[6] += qty;
 
                 // 2. 용지별 사용량 매핑 (아이템 코드 일치)
                 if (row.item_code === '11ANP-0000001') dataCache[date].usage_paper.A += qty;
