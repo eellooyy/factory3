@@ -259,7 +259,7 @@
             const targetBottom = top + activeTd.offsetHeight;
             const scrollTop = panel.scrollTop;
             const panelHeight = panel.clientHeight;
-            const headerHeight = 88; // Sticky 헤더(2단) 고정 높이
+            const headerHeight = 88;
 
             if (targetBottom > scrollTop + panelHeight) {
                 panel.scrollTop = targetBottom - panelHeight + 10;
@@ -303,7 +303,7 @@
             .then(res => {
                 if (res.status === 'success') {
                     renderInitial(res.data);
-                    // 초기 진입 시 오늘 날짜로 스크롤
+                    // 데이터 로드 완료 후 오늘 날짜로 자동 스크롤
                     scrollToToday();
                 } else {
                     showError(res.message || '데이터 조회 실패');
@@ -316,36 +316,48 @@
             .finally(() => { state.loading = false; });
     }
 
-    function loadPrevMonth() {
-        isLoadingPrev = true;
-        oldestMonth--;
-        if (oldestMonth < 1) {
-            oldestMonth = 12;
-            oldestYear--;
-        }
+    // [핵심 변경 1] 공간 확보를 위해 Promise 반환 및 isAutoFill(자동 호출 여부) 기능 추가
+    function loadPrevMonth(isAutoFill = false) {
+        return new Promise((resolve) => {
+            if (isLoadingPrev) return resolve();
+            isLoadingPrev = true;
+            
+            oldestMonth--;
+            if (oldestMonth < 1) {
+                oldestMonth = 12;
+                oldestYear--;
+            }
 
-        const panel1 = document.getElementById('f3ioScrollPanel1');
-        const prevHeight = panel1.scrollHeight;
+            const panel1 = document.getElementById('f3ioScrollPanel1');
+            const prevHeight = panel1 ? panel1.scrollHeight : 0;
 
-        fetchMockData(oldestYear, oldestMonth)
-            .then(res => {
-                if (res.status === 'success') {
-                    const htmls = generateRowsHTML(res.data);
-                    document.getElementById('f3ioBody1').insertAdjacentHTML('afterbegin', htmls.html1);
-                    document.getElementById('f3ioBody2').insertAdjacentHTML('afterbegin', htmls.html2);
-                    document.getElementById('f3ioBody3').insertAdjacentHTML('afterbegin', htmls.html3);
-                    
-                    requestAnimationFrame(() => {
-                        const newHeight = panel1.scrollHeight;
-                        const diff = newHeight - prevHeight;
-                        PANEL_IDS.forEach(id => {
-                            const p = document.getElementById(id);
-                            if (p) p.scrollTop += diff;
+            fetchMockData(oldestYear, oldestMonth)
+                .then(res => {
+                    if (res.status === 'success') {
+                        const htmls = generateRowsHTML(res.data);
+                        document.getElementById('f3ioBody1').insertAdjacentHTML('afterbegin', htmls.html1);
+                        document.getElementById('f3ioBody2').insertAdjacentHTML('afterbegin', htmls.html2);
+                        document.getElementById('f3ioBody3').insertAdjacentHTML('afterbegin', htmls.html3);
+                        
+                        requestAnimationFrame(() => {
+                            // 단순 무한스크롤 시에는 기존 스크롤 위치 유지, 자동 여백 확보 목적일 땐 무시
+                            if (panel1 && !isAutoFill) {
+                                const newHeight = panel1.scrollHeight;
+                                const diff = newHeight - prevHeight;
+                                PANEL_IDS.forEach(id => {
+                                    const p = document.getElementById(id);
+                                    if (p) p.scrollTop += diff;
+                                });
+                            }
+                            resolve(); // 완료 신호 반환
                         });
-                    });
-                }
-            })
-            .finally(() => { isLoadingPrev = false; });
+                    } else {
+                        resolve();
+                    }
+                })
+                .catch(() => resolve())
+                .finally(() => { isLoadingPrev = false; });
+        });
     }
 
     function showLoading() {
@@ -458,8 +470,8 @@
         });
     }
 
+    // [핵심 변경 2] 물리적인 여백 부족을 판단하여 이전 달을 강제 호출하는 기능 탑재
     function scrollToToday() {
-        // 브라우저 렌더링(높이 계산 등)이 확실히 반영된 후 위치 계산을 진행하도록 setTimeout으로 지연 처리
         setTimeout(() => {
             requestAnimationFrame(() => {
                 const today = todayStr();
@@ -472,7 +484,6 @@
                 }
                 
                 if (row) {
-                    // 정확한 offsetTop 계산
                     let top = 0;
                     let current = row;
                     while (current && current !== panel1 && current !== document.body) {
@@ -480,19 +491,48 @@
                         current = current.offsetParent;
                     }
                     
-                    // 중앙이 아닌 상단에서 1/3 지점 (약간 상단)에 위치하도록 스크롤 보정
-                    const targetScroll = top - (panel1.clientHeight / 3);
+                    // 화면 높이의 1/3을 뺀 값으로 목표 스크롤값 설정
+                    const offset = panel1.clientHeight / 3;
+                    const targetScroll = top - offset;
                     
-                    PANEL_IDS.forEach(id => {
-                        const p = document.getElementById(id);
-                        if (p) {
-                            p.scrollTo({ top: Math.max(0, targetScroll), behavior: 'auto' });
-                        }
-                    });
+                    // 만약 목표 스크롤이 음수(1일~3일 등 월초라서 위로 올릴 여백이 없음)라면
+                    if (targetScroll < 0 && !isLoadingPrev) {
+                        // 이전 달 데이터를 강제로 불러와 상단 물리 공간을 만듦
+                        loadPrevMonth(true).then(() => {
+                            // 로딩이 끝나면 다시 위치를 계산해서 1/3 지점으로 완벽히 안착시킴
+                            requestAnimationFrame(() => {
+                                let newRow = panel1.querySelector(`tr[data-date="${today}"]`);
+                                if (!newRow) newRow = panel1.querySelector(`tr[data-date="${yesterdayStr()}"]`);
+                                
+                                if (newRow) {
+                                    let newTop = 0;
+                                    let curr = newRow;
+                                    while (curr && curr !== panel1 && curr !== document.body) {
+                                        newTop += curr.offsetTop;
+                                        curr = curr.offsetParent;
+                                    }
+                                    const finalScroll = newTop - offset;
+                                    PANEL_IDS.forEach(id => {
+                                        const p = document.getElementById(id);
+                                        // 방금 만들어진 상단 여백을 활용해 자연스럽게 1/3 위치로 스크롤
+                                        if (p) p.scrollTo({ top: Math.max(0, finalScroll), behavior: 'auto' });
+                                    });
+                                }
+                            });
+                        });
+                    } else {
+                        // 중순이나 월말이어서 이미 상단 여백(1일~어제)이 충분한 경우 즉시 이동
+                        PANEL_IDS.forEach(id => {
+                            const p = document.getElementById(id);
+                            if (p) {
+                                p.scrollTo({ top: Math.max(0, targetScroll), behavior: 'auto' });
+                            }
+                        });
+                    }
                 }
                 updateDateText(today);
             });
-        }, 50); // 짧은 딜레이로 렌더링 사이클 확보
+        }, 50);
     }
 
     /* ─────────────────────────────────────────
