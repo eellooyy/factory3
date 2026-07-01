@@ -389,7 +389,7 @@
 
         data.forEach(row => {
             const d     = new Date(row.date + 'T00:00:00');
-            const isT   = row.date === todayStr();
+            const isT   = row.date === yesterdayStr();
             const trCls = isT ? 'f3io-row-today' : '';
 
             let wdCls = '';
