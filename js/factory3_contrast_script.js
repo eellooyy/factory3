@@ -4,7 +4,6 @@
 
     const WD_KR = ['일', '월', '화', '수', '목', '금', '토'];
 
-    // 오늘 및 어제 기준 날짜 세팅
     const todayObj = new Date();
     const yesterdayObj = new Date();
     yesterdayObj.setDate(todayObj.getDate() - 1);
@@ -28,7 +27,6 @@
     let dataCache = {};
     const PIDS = ['f3ctScrollPanel1', 'f3ctScrollPanel2', 'f3ctScrollPanel3', 'f3ctScrollPanel4', 'f3ctScrollPanel5', 'f3ctScrollPanel6'];
 
-    // 기준일(targetDate) 앞뒤로 15일(총 31일)의 배열 생성
     function getDatesRange(targetDateStr) {
         const dates = [];
         const baseDate = new Date(targetDateStr + 'T00:00:00');
@@ -40,7 +38,6 @@
         return dates;
     }
 
-    // 어제 날짜를 초과하는 "미래" 데이터는 빈 공간 처리
     function fmtNum(v, ds) {
         const rowDate = new Date(ds + 'T00:00:00');
         const yesterdayDate = new Date(yesterdayStr() + 'T00:00:00'); 
@@ -54,7 +51,6 @@
         return `<span${n < 0 ? ' class="f3ct-negative"' : ''}>${n.toLocaleString()}</span>`;
     }
 
-    // 모의 DB 로더 (이 영역이 추후 Supabase 패치 영역으로 교체됩니다)
     function buildRow(ds) {
         if (!dataCache[ds]) {
             const isPast = new Date(ds + 'T00:00:00') <= new Date(yesterdayStr() + 'T00:00:00');
@@ -85,7 +81,6 @@
     }
 
     function renderAllRows() {
-        // 선택된 날짜(없을 시 어제)를 기준으로 앞뒤 15일치(총 31일) 렌더링
         const targetStr = state.selectedDate || yesterdayStr();
         const dates = getDatesRange(targetStr);
         const rows = dates.map(ds => buildRow(ds));
@@ -151,7 +146,7 @@
                 PIDS.filter(x => x !== id).forEach(tid => {
                     const t = document.getElementById(tid); if(t) t.scrollTop = top;
                 });
-                clearHighlights();
+                // 스크롤 시 강조가 풀리지 않도록 clearHighlights() 제거
                 _syncLock = false;
             });
         });
@@ -273,7 +268,6 @@
                     top += el.offsetTop; 
                     el = el.offsetParent; 
                 }
-                // 목표 날짜가 화면 중앙에서 약간 윗쪽(전체 높이의 약 3.5등분 위쪽)에 오도록 스크롤 위치 조정
                 const targetScrollTop = top - (pan.clientHeight / 3.5); 
                 PIDS.forEach(id => { 
                     const p = document.getElementById(id); 
@@ -289,7 +283,6 @@
             bindClicks();
             bindKeyboardNav();
 
-            // 공통 헤더 날짜 변경 시에도 동일하게 앞뒤 15일치 로딩
             if (window.Factory3Header) {
                 window.Factory3Header.init({
                     idPrefix: 'Contrast',
@@ -303,7 +296,6 @@
                 });
             }
 
-            // 페이지 최초 진입 시 어제 날짜 포커싱 및 앞뒤 15일 데이터 렌더링
             state.selectedDate = yesterdayStr();
             renderAllRows();
             scrollToDate(yesterdayStr());
