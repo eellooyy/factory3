@@ -20,7 +20,7 @@
 </head>
 <body style="background: #f4f4f8;">
 
-<div class="gf3-wrapper" style="padding-bottom: 0;">
+<div class="gf3-wrapper gf3-header-wrapper" style="padding-bottom: 0;">
     <div class="gf3-header">
         <div class="gf3-title-wrap">
             <span class="material-symbols-outlined gf3-hamburger">menu</span>
@@ -36,14 +36,16 @@
         <div class="gf3-controls">
             <div class="gf3-nav-group">
                 <button id="gf3ContrastPrevBtn" class="gf3-icon-btn style-disabled" title="이전 날짜" disabled><span class="material-symbols-outlined">chevron_left</span></button>
-                <div class="gf3-cal-wrap style-disabled" id="gf3ContrastCalendarWrap">
-                    <span id="gf3ContrastDateText" class="gf3-date-text"></span>
+                
+                <div class="gf3-cal-wrap" id="gf3ContrastCalendarWrap">
+                    <span id="gf3ContrastDateText" class="gf3-date-text cursor-pointer"></span>
                     <input type="text" id="gf3ContrastFlatpickr" style="display: none;">
                 </div>
+                
                 <button id="gf3ContrastNextBtn" class="gf3-icon-btn style-disabled" title="다음 날짜" disabled><span class="material-symbols-outlined">chevron_right</span></button>
             </div>
             
-            <button id="gf3ContrastTodayBtn" class="gf3-action-btn today-btn style-disabled" disabled>오늘</button>
+            <button id="gf3ContrastTodayBtn" class="gf3-action-btn today-btn">오늘</button>
             <button id="gf3ContrastEditBtn" class="gf3-action-btn edit-btn style-disabled" disabled>수정</button>
             <button id="gf3ContrastSaveBtn" class="gf3-action-btn save-btn style-disabled" disabled>저장</button>
             <button id="gf3ContrastExcelBtn" class="gf3-action-btn excel-btn">
@@ -174,6 +176,6 @@
 
 <script src="js/factory3_utils.js"></script>
 <script src="js/factory3_header.js"></script>
-<script src="js/factory3_contrast_script.js?v=1.2"></script>
+<script src="js/factory3_contrast_script.js?v=1.3"></script>
 </body>
 </html>

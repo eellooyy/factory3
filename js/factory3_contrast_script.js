@@ -4,9 +4,10 @@
 
     const WD_KR = ['일', '월', '화', '수', '목', '금', '토'];
 
-    // 항상 어제 날짜를 기준으로 달을 잡습니다 (과거 한 달 데이터 포커스)
+    // 오늘 및 어제 기준 날짜 세팅
+    const todayObj = new Date();
     const yesterdayObj = new Date();
-    yesterdayObj.setDate(yesterdayObj.getDate() - 1);
+    yesterdayObj.setDate(todayObj.getDate() - 1);
 
     const state = {
         year: yesterdayObj.getFullYear(),
@@ -22,8 +23,7 @@
     function pad(n) { return String(n).padStart(2, '0'); }
     
     function todayStr() {
-        const t = new Date();
-        return `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
+        return `${todayObj.getFullYear()}-${pad(todayObj.getMonth()+1)}-${pad(todayObj.getDate())}`;
     }
     
     function yesterdayStr() {
@@ -34,10 +34,10 @@
         return Array.from({ length: new Date(y, m, 0).getDate() }, (_, i) => `${y}-${pad(m)}-${pad(i+1)}`);
     }
 
-    // 어제 날짜를 초과하는 "미래" 데이터는 모두 빈 공간(-)으로 렌더링
+    // 어제 날짜를 초과하는 "미래" 데이터는 빈 공간 처리
     function fmtNum(v, ds) {
         const rowDate = new Date(ds + 'T00:00:00');
-        const yesterdayDate = new Date(yesterdayStr() + 'T00:00:00');
+        const yesterdayDate = new Date(yesterdayStr() + 'T00:00:00'); 
 
         if (rowDate > yesterdayDate) {
             return '<span class="f3ct-empty">-</span>';
@@ -48,10 +48,10 @@
         return `<span${n < 0 ? ' class="f3ct-negative"' : ''}>${n.toLocaleString()}</span>`;
     }
 
+    // 모의 DB 로더 (이 영역이 추후 Supabase 패치 영역으로 교체됩니다)
     function buildRow(ds) {
         if (!dataCache[ds]) {
             const isPast = new Date(ds + 'T00:00:00') <= new Date(yesterdayStr() + 'T00:00:00');
-            // 미래 날짜면 0 세팅, 렌더러에서 빈공간 처리
             dataCache[ds] = {
                 jigo_a: isPast ? Math.floor(Math.random() * 400000) + 100000 : 0,
                 jigo_d: isPast ? Math.floor(Math.random() * 80000) + 20000 : 0,
@@ -79,6 +79,7 @@
     }
 
     function renderAllRows() {
+        // 현재 캘린더에서 선택된 달(month) 기준으로 화면 재생성
         const dates = getDatesOfMonth(state.year, state.month);
         const rows = dates.map(ds => buildRow(ds));
 
@@ -90,43 +91,34 @@
             const wd = d.getDay();
             const wdC = wd === 6 ? 'f3ct-sat' : wd === 0 ? 'f3ct-sun' : '';
             const m = pad(d.getMonth()+1), dy = pad(d.getDate()), wn = WD_KR[wd];
-
-            // 날짜 td는 1번 패널에만 넣기 위해 따로 뺌
             const dateTd = `<td class="f3ct-date-td ${wdC}" data-date="${row.date}">${m}/${dy} (${wn})</td>`;
 
-            // 패널 1 (날짜 열 포함)
             h1 += `<tr class="${trC}" data-date="${row.date}">
                 ${dateTd}
                 <td class="f3ct-data-cell" data-col="1">${fmtNum(row.jigo_a, row.date)}</td>
                 <td class="f3ct-data-cell" data-col="2">${fmtNum(row.jigo_d, row.date)}</td>
                 <td class="f3ct-data-cell f3ct-sum-col" data-col="3">${fmtNum(row.jigo_sum, row.date)}</td>
             </tr>`;
-
-            // 패널 2~6 (날짜 열 제거됨, 데이터 열만 존재)
             h2 += `<tr class="${trC}" data-date="${row.date}">
                 <td class="f3ct-data-cell" data-col="1">${fmtNum(row.geupji_a, row.date)}</td>
                 <td class="f3ct-data-cell" data-col="2">${fmtNum(row.geupji_d, row.date)}</td>
                 <td class="f3ct-data-cell f3ct-sum-col" data-col="3">${fmtNum(row.geupji_sum, row.date)}</td>
             </tr>`;
-
             h3 += `<tr class="${trC}" data-date="${row.date}">
                 <td class="f3ct-data-cell" data-col="1">${fmtNum(row.real_a, row.date)}</td>
                 <td class="f3ct-data-cell" data-col="2">${fmtNum(row.real_d, row.date)}</td>
                 <td class="f3ct-data-cell f3ct-sum-col" data-col="3">${fmtNum(row.real_sum, row.date)}</td>
             </tr>`;
-
             h4 += `<tr class="${trC}" data-date="${row.date}">
                 <td class="f3ct-data-cell" data-col="1">${fmtNum(row.erp_a, row.date)}</td>
                 <td class="f3ct-data-cell" data-col="2">${fmtNum(row.erp_d, row.date)}</td>
                 <td class="f3ct-data-cell f3ct-sum-col" data-col="3">${fmtNum(row.erp_sum, row.date)}</td>
             </tr>`;
-
             h5 += `<tr class="${trC}" data-date="${row.date}">
                 <td class="f3ct-data-cell" data-col="1">${fmtNum(row.diff_a, row.date)}</td>
                 <td class="f3ct-data-cell" data-col="2">${fmtNum(row.diff_d, row.date)}</td>
                 <td class="f3ct-data-cell f3ct-sum-col" data-col="3">${fmtNum(row.diff_sum, row.date)}</td>
             </tr>`;
-
             h6 += `<tr class="${trC}" data-date="${row.date}">
                 <td class="f3ct-data-cell f3ct-sum-col" data-col="1">${fmtNum(row.jeunggam, row.date)}</td>
             </tr>`;
@@ -161,6 +153,7 @@
     function clearHighlights() {
         document.querySelectorAll('.f3ct-selected-row').forEach(e => e.classList.remove('f3ct-selected-row'));
         document.querySelectorAll('.f3ct-selected-cell').forEach(e => e.classList.remove('f3ct-selected-cell'));
+        document.querySelectorAll('.f3ct-header-active').forEach(e => e.classList.remove('f3ct-header-active')); // 헤더 색상 해제
         [1,2,3,4,5,6].forEach(i => { const c = document.getElementById(`f3ctCursor${i}`); if (c) c.classList.remove('active'); });
     }
 
@@ -178,12 +171,24 @@
             td.classList.add('f3ct-selected-cell');
             const cur = document.getElementById(`f3ctCursor${panelIdx}`);
             const pan = document.getElementById(`f3ctScrollPanel${panelIdx}`);
+            
+            // 커서 애니메이션 이동
             if(cur && pan) {
                 let top=0, left=0, el=td;
                 while(el && el!==pan && el!==document.body) { top+=el.offsetTop; left+=el.offsetLeft; el=el.offsetParent; }
                 cur.style.width = td.offsetWidth+'px'; cur.style.height = td.offsetHeight+'px';
                 cur.style.left = left+'px'; cur.style.top = top+'px';
                 cur.classList.add('active');
+            }
+
+            // 헤더 하이라이팅 연동 로직
+            if (pan) {
+                const lv2 = pan.querySelector(`.f3ct-thead-lv2 th[data-col="${col}"]`);
+                if (lv2) {
+                    lv2.classList.add('f3ct-header-active');
+                    const lv1 = pan.querySelector(`.f3ct-thead-lv1 th.f3ct-group-th`);
+                    if (lv1) lv1.classList.add('f3ct-header-active');
+                }
             }
         }
     }
@@ -201,10 +206,63 @@
         });
     }
 
-    // 어제 날짜 행이 컨테이너 상단 25% 부근에 오도록 정밀 포커싱
-    function scrollToYesterday() {
+    // 3번 요구사항: 키보드 상하좌우 방향키를 통한 글래스 커서 완벽 제어
+    function bindKeyboardNav() {
+        document.addEventListener('keydown', e => {
+            if (!state.selectedDate || !state.selectedPanel || !state.selectedCol) return;
+            if (!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) return;
+            e.preventDefault();
+
+            let panelIdx = Number(state.selectedPanel);
+            let colNum   = Number(state.selectedCol);
+            const body   = document.getElementById(`f3ctBody${panelIdx}`);
+            if (!body) return;
+            const curRow = body.querySelector(`tr[data-date="${state.selectedDate}"]`);
+            if (!curRow) return;
+
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                const target = e.key === 'ArrowUp' ? curRow.previousElementSibling : curRow.nextElementSibling;
+                if (target && target.getAttribute('data-date')) {
+                    applyHighlight(panelIdx, target.getAttribute('data-date'), String(colNum));
+                    scrollToActiveCell(panelIdx);
+                }
+            } else {
+                // 각 패널별 최대 컬럼 개수 정의 (패널1~5: 3개, 패널6: 1개)
+                const colCount = { 1:3, 2:3, 3:3, 4:3, 5:3, 6:1 };
+                
+                if (e.key === 'ArrowLeft') {
+                    colNum--;
+                    if (colNum < 1) { 
+                        if (panelIdx > 1) { panelIdx--; colNum = colCount[panelIdx]; } 
+                        else colNum = 1; 
+                    }
+                } else {
+                    colNum++;
+                    if (colNum > colCount[panelIdx]) { 
+                        if (panelIdx < 6) { panelIdx++; colNum = 1; } 
+                        else colNum = colCount[panelIdx]; 
+                    }
+                }
+                applyHighlight(panelIdx, state.selectedDate, String(colNum));
+                scrollToActiveCell(panelIdx);
+            }
+        });
+    }
+
+    // 방향키 이동 시 화면 스크롤 자동 따라가기
+    function scrollToActiveCell(idx) {
+        const pan = document.getElementById(`f3ctScrollPanel${idx}`);
+        const td  = document.querySelector(`#f3ctBody${idx} tr[data-date="${state.selectedDate}"] td[data-col="${state.selectedCol}"]`);
+        if (!pan || !td) return;
+        let top = 0, el = td;
+        while (el && el !== pan && el !== document.body) { top += el.offsetTop; el = el.offsetParent; }
+        const bot = top + td.offsetHeight;
+        if (bot > pan.scrollTop + pan.clientHeight) pan.scrollTop = bot - pan.clientHeight + 10;
+        else if (top < pan.scrollTop + 80)           pan.scrollTop = top - 80 - 10; 
+    }
+
+    function scrollToDate(targetDate) {
         setTimeout(() => requestAnimationFrame(() => {
-            const targetDate = yesterdayStr();
             const row = document.querySelector(`#f3ctBody1 tr[data-date="${targetDate}"]`);
             if (row) {
                 const pan = document.getElementById('f3ctScrollPanel1');
@@ -213,7 +271,7 @@
                     top += el.offsetTop; 
                     el = el.offsetParent; 
                 }
-                const targetScrollTop = top - (pan.clientHeight / 4); // 상단에서 약 25% 지점
+                const targetScrollTop = top - (pan.clientHeight / 4); 
                 PIDS.forEach(id => { 
                     const p = document.getElementById(id); 
                     if (p) p.scrollTop = targetScrollTop; 
@@ -222,46 +280,31 @@
         }), 120);
     }
 
-    // 완전히 사용 불가능하도록 모든 제어 버튼 차단 (안전장치)
-    function forceDisableAllButtons() {
-        const blockIds = ['gf3ContrastPrevBtn', 'gf3ContrastNextBtn', 'gf3ContrastTodayBtn', 'gf3ContrastEditBtn', 'gf3ContrastSaveBtn'];
-        blockIds.forEach(id => {
-            const btn = document.getElementById(id);
-            if (btn) {
-                btn.disabled = true;
-                btn.classList.add('style-disabled');
-                // 클릭, 호버 등 이벤트 트리거 원천 차단
-                btn.style.pointerEvents = 'none'; 
-            }
-        });
-    }
-
     const Module = {
         init: function () {
-            forceDisableAllButtons();
             bindScrollSync(); 
             bindClicks();
+            bindKeyboardNav(); // 키보드 네비게이션 트리거 연결
 
-            // 헤더 초기화 연계 (읽기 전용 페이지이므로 이벤트를 빈 함수로 봉쇄하여 '나가시겠습니까' 팝업 무력화)
+            // 헤더 및 캘린더 초기화 연계 (과거 한 달 날짜 이동 시 DB 조회 후 리로드 동작)
             if (window.Factory3Header) {
                 window.Factory3Header.init({
                     idPrefix: 'Contrast',
-                    onDateChange: () => {}, 
-                    onSave: () => {}
+                    onDateChange: (ds) => {
+                        const d = new Date(ds);
+                        state.year = d.getFullYear();
+                        state.month = d.getMonth() + 1;
+                        clearHighlights();
+                        renderAllRows(); // 해당 월 데이터로 재생성
+                        scrollToDate(ds); 
+                    }, 
+                    onSave: () => {} 
                 });
             }
 
-            // 고정된 현재 텍스트(어제 날짜) 강제 삽입
-            const dateEl = document.getElementById('gf3ContrastDateText');
-            if(dateEl) {
-                const d = yesterdayObj;
-                dateEl.textContent = `${d.getFullYear()}년 ${d.getMonth()+1}월`; 
-                // 캘린더 영역 통째로 클릭 막기
-                dateEl.parentElement.style.pointerEvents = 'none';
-            }
-
+            // 페이지 최초 진입 시 어제 날짜 포커싱 및 렌더링
             renderAllRows();
-            scrollToYesterday();
+            scrollToDate(yesterdayStr());
         }
     };
 
