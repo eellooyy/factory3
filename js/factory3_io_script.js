@@ -125,6 +125,10 @@
 
     // factory3_io 테이블 전체 로드
     async function loadIoTable() {
+        const threeMonthsAgo = new Date();
+        oneMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 1);
+        const startStr = fmtDate(oneMonthsAgo);
+
         const { data, error } = await supabase
             .from('factory3_io')
             .select('date, stock_a, stock_d, in_a, in_d')
