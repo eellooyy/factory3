@@ -226,17 +226,27 @@
         }
     }
 
-    /* ─────────────────────────────────────────
-       입고 저장 (upsert)
-    ───────────────────────────────────────── */
-    async function saveIncoming(dateStr, in_a, in_d) {
-        const { error } = await supabase
-            .from('factory3_io')
-            .upsert({ date: dateStr, in_a, in_d }, { onConflict: 'date' });
+/* ─────────────────────────────────────────
+   입고 및 재고 저장 (upsert)
+───────────────────────────────────────── */
+async function saveIncoming(dateStr, in_a, in_d, stock_a, stock_d) {
+    const { error } = await supabase
+        .from('factory3_io')
+        .upsert({ 
+            date: dateStr, 
+            in_a: in_a, 
+            in_d: in_d, 
+            stock_a: stock_a, 
+            stock_d: stock_d 
+        }, { onConflict: 'date' });
 
-        if (error) { alert('저장 실패: ' + error.message); return false; }
-        return true;
+    if (error) { 
+        console.error('저장 실패:', error);
+        alert('저장 실패: ' + error.message); 
+        return false; 
     }
+    return true;
+}
 
     /* ─────────────────────────────────────────
        저장 핸들러
