@@ -214,11 +214,11 @@ window.Factory3Io = window.Factory3Io || {};
     }
 
     function onEditModeEnter() {
-        // [수정 사항]: 테이블 컨테이너에도 디자인 제어용 edit-mode 클래스 추가
         const wrapper = document.querySelector('.f3io-wrapper');
         if (wrapper) wrapper.classList.add('edit-mode');
 
         const today = Utils.todayStr();
+        // 오늘 날짜로부터 1주일 전까지 설정된 영역 범위 정의 (총 7일)
         const editDates = Utils.getDatesRange(Utils.addDays(today, -6), today);
         let firstInput = null;
 
@@ -239,14 +239,17 @@ window.Factory3Io = window.Factory3Io || {};
                 return inp;
             }
 
+            // 전체 열이 아닌 최근 1주일 해당 셀들에만 특정 활성화 클래스(f3io-active-edit-cell) 부여 및 인풋 삽입
             if (tdA) {
                 tdA.innerHTML = '';
+                tdA.classList.add('f3io-active-edit-cell');
                 const inp = makeInput(d.in_a || 0);
                 tdA.appendChild(inp);
                 if (!firstInput) firstInput = inp;
             }
             if (tdD) {
                 tdD.innerHTML = '';
+                tdD.classList.add('f3io-active-edit-cell');
                 const inp = makeInput(d.in_d || 0);
                 tdD.appendChild(inp);
             }
@@ -259,9 +262,13 @@ window.Factory3Io = window.Factory3Io || {};
     }
 
     function onEditModeExit() {
-        // [수정 사항]: 편집 모드 종료 시 클래스 제거
         const wrapper = document.querySelector('.f3io-wrapper');
         if (wrapper) wrapper.classList.remove('edit-mode');
+
+        // 편집 모드 종료 시 동적으로 추가했던 활성화용 클래스들을 제거합니다.
+        document.querySelectorAll('.f3io-active-edit-cell').forEach(td => {
+            td.classList.remove('f3io-active-edit-cell');
+        });
 
         Render.rerenderAllRows(true);
     }

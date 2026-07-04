@@ -169,7 +169,7 @@
     border-bottom: 1px solid #e0e0e0;
     background: #fff;
     white-space: nowrap;
-    height: 44px; /* 높이 고정 (정렬 맞춤) */
+    height: 44px; 
     box-sizing: border-box;
 }
 
@@ -180,7 +180,7 @@
     font-weight: 800 !important;
     border-bottom: 1px solid #e0e0e0 !important;
     letter-spacing: -0.2px;
-    height: 44px !important; /* 높이 고정 */
+    height: 44px !important; 
     box-sizing: border-box;
 }
 
@@ -194,7 +194,7 @@
     border-bottom: 1px solid #e0e0e0;
     background: #fff;
     white-space: nowrap;
-    height: 44px; /* 높이 고정 */
+    height: 44px; 
     box-sizing: border-box;
 }
 
@@ -215,7 +215,7 @@
     border-bottom: 1px solid #ebebeb;
     color: #1d1d1f;
     transition: background 0.12s;
-    height: 44px; /* 높이 고정 (3개 패널 행 높이 완벽 동기화) */
+    height: 44px; 
     box-sizing: border-box;
 }
 
@@ -337,20 +337,19 @@ td.f3io-sum-col.f3io-sum-mismatch {
     transition: background 0.15s;
 }
 
-/* 편집 모드 진입 시 input 스타일 — geupji gf3-input과 동일 계열 */
+/* 편집 모드 진입 시 input 스타일 */
 .f3io-in-input {
     display: block;
     width: 100%;
     height: 100%;
-    border: none;
-    border-bottom: 2px solid #007aff;
+    border: none !important; /* 밑줄 해제 처리 */
     border-radius: 0;
     background: #eef4ff;
     text-align: center;
     font-size: 13px;
     font-family: inherit;
     font-weight: 600;
-    color: #0051d0;
+    color: #1d1d1f !important; /* 커서색 및 글자색 변동 없도록 일반 텍스트 칼라 고정 */
     outline: none;
     padding: 4px 2px;
     box-sizing: border-box;
@@ -365,25 +364,27 @@ td.f3io-sum-col.f3io-sum-mismatch {
 }
 .f3io-in-input:focus {
     background: #ddeaff;
-    border-bottom-color: #003fa8;
+    border: none !important; /* 포커스 상태에서도 밑줄 제거 */
 }
 
-/* [수정 및 추가 사항]: 급지 재고 관리 디자인과 완벽한 통일 (따뜻한 노란색 계열) */
+/* =================================================
+   [요구사항 반영 디자인 수정 세션]
+   ================================================= */
 
-/* 1. 편집 모드일 때 편집 가능 셀 배경 강조 */
-.f3io-wrapper.edit-mode #f3ioBody1 td.f3io-editable-cell {
+/* 1. 편집 모드일 때 해당 열 전체가 아닌, 1주일 전 범위에 속해 활성화된 셀(f3io-active-edit-cell)만 노란 배경 적용 */
+.f3io-wrapper.edit-mode #f3ioBody1 td.f3io-active-edit-cell {
     background: #fff9e6 !important;
 }
 
-/* 2. 편집 모드 진입 시 내부에 생성되는 input 기본 배경 및 테두리선 변경 */
+/* 2. 편집 모드 진입 시 내부에 생성되는 input 기본 배경 정의 및 불필요한 스타일(밑줄, 커서색) 변경 처리 방지 */
 .f3io-wrapper.edit-mode .f3io-in-input {
     background: #fff9e6 !important;
-    color: #b07d00 !important;
-    border-bottom-color: #ffb300 !important;
+    color: #1d1d1f !important; /* 임의의 텍스트/커서 색상 변경 주석 처리 (기본 유지) */
+    border: none !important;   /* 활성화 셀 밑줄 완전 제거 */
 }
 
-/* 3. 편집 모드에서 실제 input에 마우스나 키보드 포커스가 갔을 때의 강조 색상 */
+/* 3. 편집 모드에서 실제 input에 마우스나 키보드 포커스가 갔을 때의 강조 색상 (밑줄 비활성 유지) */
 .f3io-wrapper.edit-mode .f3io-in-input:focus {
     background: #fff2cc !important;
-    border-bottom-color: #e69500 !important;
+    border: none !important;   /* 포커스 밑줄 제거 유지 */
 }
