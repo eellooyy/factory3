@@ -44,8 +44,8 @@
             if (!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) return;
             e.preventDefault();
 
-                    let panelIdx = Number(state.selectedPanel);
-                    let colNum   = Number(state.selectedCol);
+            let panelIdx = Number(state.selectedPanel);
+            let colNum   = Number(state.selectedCol);
             const body   = document.getElementById(`f3ctBody${panelIdx}`);
             if (!body) return;
             const curRow = body.querySelector(`tr[data-date="${state.selectedDate}"]`);
@@ -80,7 +80,7 @@
     }
 
     const Module = {
-        init: function () {
+        init: async function () { // async 추가
             bindScrollSync(); 
             bindClicks();
             bindKeyboardNav();
@@ -88,9 +88,13 @@
             if (window.Factory3Header) {
                 window.Factory3Header.init({
                     idPrefix: 'Contrast',
-                    onDateChange: (ds) => {
+                    onDateChange: async (ds) => { // async 추가
                         state.selectedDate = ds;
                         window.FC_RENDER.clearHighlights();
+                        
+                        // 날짜 변경 시 Supabase에서 새로운 범위의 데이터를 로드합니다.
+                        await window.FC_API.fetchDataRange(ds); 
+                        
                         window.FC_RENDER.renderAllRows(); 
                         window.FC_RENDER.scrollToDate(ds); 
                     }, 
@@ -99,6 +103,10 @@
             }
 
             state.selectedDate = window.FC_CONST.yesterdayStr();
+            
+            // 최초 실행 시 Supabase에서 데이터를 연동합니다.
+            await window.FC_API.fetchDataRange(state.selectedDate);
+            
             window.FC_RENDER.renderAllRows();
             window.FC_RENDER.scrollToDate(window.FC_CONST.yesterdayStr());
         }
