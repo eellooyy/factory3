@@ -49,7 +49,7 @@ Factory3Io.Utils = {
     },
     fmtKo: function (ds) {
         const d = new Date(ds + 'T00:00:00');
-        return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${Factory3Io.WD_KR[d.getDay()]})`;
+        return `${d.getFullYear()}년 ${this.pad(d.getMonth() + 1)}월 ${this.pad(d.getDate())}일 (${Factory3Io.WD_KR[d.getDay()]})`;;
     },
     fmtDate: function (d) {
         return `${d.getFullYear()}-${this.pad(d.getMonth() + 1)}-${this.pad(d.getDate())}`;
