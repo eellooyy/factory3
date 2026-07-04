@@ -423,7 +423,7 @@ window.Factory3Io = window.Factory3Io || {};
                 if (btn) { btn.disabled = true; btn.style.opacity = '0.3'; btn.style.pointerEvents = 'none'; }
             });
 
-            loadDataChunk(Utils.todayStr());
+            loadDataChunk(Utils.yesterdayStr());
         },
         destroy: function () {}
     };
