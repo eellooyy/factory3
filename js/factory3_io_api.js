@@ -75,7 +75,6 @@ Factory3Io.API = {
     },
 
     loadIoTableRange: async function (start, end) {
-        // [중요 수정]: stock_a, stock_d 컬럼을 함께 로드하여 수동 입력된 재고값을 캐싱합니다.
         const { data, error } = await Factory3Io.supabase
             .from('factory3_io')
             .select('date, in_a, in_d, stock_a, stock_d')
@@ -112,8 +111,7 @@ Factory3Io.API = {
     },
 
     loadUsageDataRange: async function (start, end) {
-        // [대폭 최적화 수정]: 원본 factory3_usage 테이블을 받아와 브라우저 단에서 직접 더하던 부하를 없애고,
-        // DB 단에서 이미 완벽히 일별 합산/정렬이 끝난 Supabase View인 'v_factory3_usage_daily'를 즉시 호출합니다.
+        // [최적화 완료]: 일별 합산이 이미 끝난 뷰 'v_factory3_usage_daily'를 호출합니다.
         const { data, error } = await Factory3Io.supabase
             .from('v_factory3_usage_daily')
             .select('print_date, media_1, media_2, media_3, media_4, media_5, media_6, paper_a, paper_d')
@@ -125,9 +123,7 @@ Factory3Io.API = {
                 const date = row.print_date;
                 if (!Factory3Io.dataCache[date]) Factory3Io.dataCache[date] = {};
                 
-                // [기존 렌더링 시스템과의 완벽 호환 보장]
-                // 불러온 뷰 데이터를 기존 factory3_io_render.js가 참조하던 데이터 트리 포맷과 100% 동일하게 매핑합니다.
-                // 이 덕분에 화면 렌더링 측 소스코드를 건드릴 필요가 없어 안정성이 극대화됩니다.
+                // 기존 렌더링 파일(render.js)의 UI 바인딩 구조가 깨지지 않도록 포맷을 완벽하게 맞춰 매핑합니다.
                 Factory3Io.dataCache[date].usage_media = {
                     1: Number(row.media_1) || 0,
                     2: Number(row.media_2) || 0,
@@ -146,7 +142,7 @@ Factory3Io.API = {
     },
 
     /* ─────────────────────────────────────────
-       [신규 추가] 최근 7일치 입고 및 연산재고 일괄 Upsert 함수
+       최근 7일치 입고 및 연산재고 일괄 Upsert 함수
     ───────────────────────────────────────── */
     saveIncomingBatch: async function (batchRows) {
         const { error } = await Factory3Io.supabase
