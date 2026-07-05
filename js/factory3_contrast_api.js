@@ -2,7 +2,7 @@
 (function () {
     'use strict';
 
-    // TODO: 본인의 Supabase 프로젝트 정보로 변경하세요.
+    // Supabase 프로젝트 정보
     const SUPABASE_URL = 'https://npiflqoscsvnnauvqhrr.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_ir-mHSsX6SSIQwHerkLbfA_2qCOP3KW'; 
     
@@ -21,7 +21,7 @@
         return dates;
     }
 
-    // [핵심 추가] Supabase 뷰에서 데이터 범위 단위로 가져오기
+    // Supabase 뷰에서 데이터 범위 단위로 가져오기
     async function fetchDataRange(targetDateStr) {
         const dates = getDatesRange(targetDateStr);
         const minDate = dates[0];
@@ -38,16 +38,15 @@
             return;
         }
 
-        // 가져온 데이터를 기존 렌더링 구조에 맞게 캐시에 매핑
+        // 새로 작성한 DB 뷰(v_daily_factory3_stock)의 컬럼 구조와 완벽히 일치하도록 매핑 수정
         data.forEach(row => {
             dataCache[row.date] = {
-                jigo_a: row.real_a - (row.geup_a || 0), // 데이터베이스 구조에 맞춘 역산 혹은 직접 매핑
                 jigo_a: row.jigo_a || 0,
                 jigo_d: row.jigo_d || 0,
                 jigo_sum: row.jigo_sum || 0,
-                geupji_a: row.geup_a || 0,
-                geupji_d: row.geup_d || 0,
-                geupji_sum: row.geup_sum || 0,
+                geupji_a: row.geupji_a || 0,
+                geupji_d: row.geupji_d || 0,
+                geupji_sum: row.geupji_sum || 0,
                 real_a: row.real_a || 0,
                 real_d: row.real_d || 0,
                 real_sum: row.real_sum || 0,
@@ -57,7 +56,7 @@
                 diff_a: row.diff_a || 0,
                 diff_d: row.diff_d || 0,
                 diff_sum: row.diff_sum || 0,
-                jeunggam: row.trend_sum || 0
+                jeunggam: row.jeunggam || 0
             };
         });
     }
@@ -76,7 +75,7 @@
     }
 
     function buildRow(ds) {
-        // 캐시에 데이터가 없으면 공백 데이터 반환 (미래 날짜 대응)
+        // 캐시에 데이터가 없으면 공백 데이터 반환
         const d = dataCache[ds] || {
             jigo_a: 0, jigo_d: 0, jigo_sum: 0,
             geupji_a: 0, geupji_d: 0, geupji_sum: 0,
@@ -100,7 +99,7 @@
     window.FC_API = {
         dataCache: dataCache,
         getDatesRange: getDatesRange,
-        fetchDataRange: fetchDataRange, // 추가됨
+        fetchDataRange: fetchDataRange,
         fmtNum: fmtNum,
         buildRow: buildRow
     };
