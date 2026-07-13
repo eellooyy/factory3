@@ -1,3 +1,4 @@
+/* js/factory3_io_main.js */
 window.Factory3Io = window.Factory3Io || {};
 
 (function () {
@@ -14,6 +15,7 @@ window.Factory3Io = window.Factory3Io || {};
             // 초기 구동 시 스크롤, 클릭, 키보드 네비게이션 이벤트를 선행 바인딩합니다.
             bindScrollSync();
             bindBodyClicks();
+            bindBodyDoubleClicks(); /* 더블클릭 이벤트(메모용) 연동 추가 */
             bindKeyboardNav();
 
             // 공통 헤더 모듈 연동 정의
@@ -74,11 +76,9 @@ window.Factory3Io = window.Factory3Io || {};
 
         try {
             const baseDate = targetDateStr || Utils.todayStr();
-            // [요구사항] 과거 3주(21일전) ~ 미래 1주(7일후) 일괄 프레임 스케줄링 지정
             const start = Utils.addDays(baseDate, -21);
             const end = Utils.addDays(baseDate, 7);
             
-            // 병렬 최적화 구조로 Supabase View 호출 통합 처리
             await API.fetchBaseline(start);
             await Promise.all([
                 API.loadIoTableRange(start, end),
@@ -86,7 +86,6 @@ window.Factory3Io = window.Factory3Io || {};
                 API.loadUsageDataRange(start, end)
             ]);
             
-            // DB에 데이터가 비어있어도 날짜 행을 무조건 출력하도록 껍데기 세팅
             const dates = Utils.getDatesRange(start, end);
             dates.forEach(ds => {
                 if (!Factory3Io.dataCache[ds]) {
@@ -94,7 +93,6 @@ window.Factory3Io = window.Factory3Io || {};
                 }
             });
 
-            // 실시간 재고 롤링 연산 가동
             API.recalcAllStocks();
 
             const rows = dates.map(ds => Render.buildRow(ds));
@@ -103,7 +101,6 @@ window.Factory3Io = window.Factory3Io || {};
             Factory3Io.state.oldestLoadedDate = start;
             Factory3Io.state.initialLoaded = true;
             
-            // 어제 위치가 화면 상단 정렬 세팅을 유도하도록 스크롤바 조절
             scrollToYesterday(baseDate);
             Render.updateDateText(baseDate);
 
@@ -146,7 +143,6 @@ window.Factory3Io = window.Factory3Io || {};
             const panel1 = document.getElementById('f3ioScrollPanel1');
             const prevHeight = panel1 ? panel1.scrollHeight : 0;
 
-            // 과거 데이터를 상단 갱신 처리
             document.getElementById('f3ioBody1').insertAdjacentHTML('afterbegin', htmls.html1);
             document.getElementById('f3ioBody2').insertAdjacentHTML('afterbegin', htmls.html2);
             document.getElementById('f3ioBody3').insertAdjacentHTML('afterbegin', htmls.html3);
@@ -154,7 +150,6 @@ window.Factory3Io = window.Factory3Io || {};
             Render.rerenderAllRows();
             Factory3Io.state.oldestLoadedDate = start;
 
-            // 스크롤 포커스 튕김 방지용 스크롤 상쇄 연산 실행
             requestAnimationFrame(() => {
                 if (panel1) {
                     const diff = panel1.scrollHeight - prevHeight;
@@ -199,7 +194,8 @@ window.Factory3Io = window.Factory3Io || {};
                 in_a: cacheData.in_a || 0,
                 in_d: cacheData.in_d || 0,
                 stock_a: cacheData.stock_a || 0,
-                stock_d: cacheData.stock_d || 0
+                stock_d: cacheData.stock_d || 0,
+                memo: cacheData.memo || null /* 기존 메모가 날아가지 않도록 보존 */
             };
         });
 
@@ -218,7 +214,6 @@ window.Factory3Io = window.Factory3Io || {};
         if (wrapper) wrapper.classList.add('edit-mode');
 
         const today = Utils.todayStr();
-        // 오늘 날짜로부터 1주일 전까지 설정된 영역 범위 정의 (총 7일)
         const editDates = Utils.getDatesRange(Utils.addDays(today, -6), today);
         let firstInput = null;
 
@@ -239,7 +234,6 @@ window.Factory3Io = window.Factory3Io || {};
                 return inp;
             }
 
-            // 전체 열이 아닌 최근 1주일 해당 셀들에만 특정 활성화 클래스(f3io-active-edit-cell) 부여 및 인풋 삽입
             if (tdA) {
                 tdA.innerHTML = '';
                 tdA.classList.add('f3io-active-edit-cell');
@@ -265,7 +259,6 @@ window.Factory3Io = window.Factory3Io || {};
         const wrapper = document.querySelector('.f3io-wrapper');
         if (wrapper) wrapper.classList.remove('edit-mode');
 
-        // 편집 모드 종료 시 동적으로 추가했던 활성화용 클래스들을 제거합니다.
         document.querySelectorAll('.f3io-active-edit-cell').forEach(td => {
             td.classList.remove('f3io-active-edit-cell');
         });
@@ -292,7 +285,6 @@ window.Factory3Io = window.Factory3Io || {};
                 hideCursors();
                 _syncLock = false;
 
-                // 스크롤 상단 근접 시 무한 스크롤 트리거 작동
                 if (top <= 10 && !Factory3Io.state.isLoadingPrev && !Factory3Io.state.loading && Factory3Io.state.oldestLoadedDate) {
                     loadPrevChunk();
                 }
@@ -309,7 +301,6 @@ window.Factory3Io = window.Factory3Io || {};
             const topPos = row.offsetTop;
             Factory3Io.PANEL_IDS.forEach(id => { 
                 const p = document.getElementById(id); 
-                // 어제 날짜 기준 가운데 윗쪽에 위치하도록 스크롤 패널 안착 분기
                 if (p) p.scrollTop = topPos - 44; 
             });
         }), 50);
@@ -350,7 +341,6 @@ window.Factory3Io = window.Factory3Io || {};
         Factory3Io.state.selectedCol   = colDataCol;
         Render.updateDateText(ds);
 
-        // 3개 대장 패널 행 동시 도색
         Factory3Io.PANEL_IDS.forEach((id, i) => {
             const body = document.getElementById(`f3ioBody${i+1}`);
             if (!body) return;
@@ -358,7 +348,6 @@ window.Factory3Io = window.Factory3Io || {};
             if (row) row.classList.add('f3io-selected-row');
         });
 
-        // 단일 타겟 셀 스포트라이트 및 유리 커서 작동
         const clickedBody = document.getElementById(`f3ioBody${panelIdx}`);
         if (clickedBody && colDataCol !== null) {
             const row = clickedBody.querySelector(`tr[data-date="${ds}"]`);
@@ -368,7 +357,6 @@ window.Factory3Io = window.Factory3Io || {};
             }
         }
 
-        // 헤더 대조 매핑 하이라이트
         if (colDataCol !== null) {
             const pan = document.getElementById(`f3ioScrollPanel${panelIdx}`);
             if (pan) {
@@ -437,15 +425,59 @@ window.Factory3Io = window.Factory3Io || {};
     }
 
     function bindBodyClicks() {
-        [[1,'f3ioBody1'], [2,'f3ioBody2'], [3,'f3ioBody3']].forEach(([pi, bid]) => {
-            const body = document.getElementById(bid);
+        Factory3Io.PANEL_IDS.forEach((id, i) => {
+            const body = document.getElementById(`f3ioBody${i+1}`);
             if (!body) return;
             body.addEventListener('click', e => {
                 const td = e.target.closest('td');
                 if (!td || td.classList.contains('f3io-date-td')) return;
                 const tr = td.closest('tr[data-date]');
                 if (!tr) return;
-                applyHighlight(pi, tr.getAttribute('data-date'), td.getAttribute('data-col'));
+                applyHighlight(i+1, tr.getAttribute('data-date'), td.getAttribute('data-col'));
+            });
+        });
+    }
+
+    /* ─ 날짜 셀 더블 클릭 시 메모 입력 처리 ─ */
+    function bindBodyDoubleClicks() {
+        Factory3Io.PANEL_IDS.forEach((id, i) => {
+            const body = document.getElementById(`f3ioBody${i+1}`);
+            if (!body) return;
+            
+            body.addEventListener('dblclick', async (e) => {
+                // 더블 클릭 이벤트는 날짜 셀(f3io-date-td)에서만 반응하도록 설정합니다.
+                const td = e.target.closest('.f3io-date-td');
+                if (!td) return;
+                const tr = td.closest('tr[data-date]');
+                if (!tr) return;
+                
+                const ds = tr.getAttribute('data-date');
+                const d = Factory3Io.dataCache[ds] || {};
+                const currentMemo = d.memo || '';
+                
+                const dateKo = Utils.fmtKo(ds); // YYYY년 MM월 DD일 등 표시용
+                const newMemo = prompt(`${dateKo} 메모를 입력하세요 (내용을 모두 지우면 메모가 삭제됩니다):`, currentMemo);
+                
+                // 취소 버튼을 누르지 않았고(null 아님), 내용이 변경되었다면
+                if (newMemo !== null && newMemo !== currentMemo) {
+                    const finalMemo = newMemo.trim() === '' ? null : newMemo.trim();
+                    
+                    // 1. 캐시 선 반영
+                    d.memo = finalMemo;
+                    Factory3Io.dataCache[ds] = d;
+                    
+                    // 2. 화면 즉시 리랜더링 적용 (빨간 삼각형 노출)
+                    Render.rerenderAllRows(true);
+                    
+                    // 3. 백그라운드 DB 갱신
+                    const ok = await API.saveMemo(ds, finalMemo);
+                    if (!ok) {
+                        // 저장 실패 시 캐시 및 화면 원상 복구
+                        d.memo = currentMemo;
+                        Factory3Io.dataCache[ds] = d;
+                        Render.rerenderAllRows(true);
+                    }
+                }
             });
         });
     }

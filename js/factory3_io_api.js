@@ -77,7 +77,7 @@ Factory3Io.API = {
     loadIoTableRange: async function (start, end) {
         const { data, error } = await Factory3Io.supabase
             .from('factory3_io')
-            .select('date, in_a, in_d, stock_a, stock_d')
+            .select('date, in_a, in_d, stock_a, stock_d, memo') /* 메모 컬럼 추가 */
             .gte('date', start)
             .lte('date', end);
 
@@ -89,6 +89,7 @@ Factory3Io.API = {
                 Factory3Io.dataCache[row.date].in_d = row.in_d || 0;
                 Factory3Io.dataCache[row.date].db_stock_a = row.stock_a || 0;
                 Factory3Io.dataCache[row.date].db_stock_d = row.stock_d || 0;
+                Factory3Io.dataCache[row.date].memo = row.memo || null;
             });
         }
     },
@@ -111,7 +112,6 @@ Factory3Io.API = {
     },
 
     loadUsageDataRange: async function (start, end) {
-        // [최적화 완료]: 일별 합산이 이미 끝난 뷰 'v_factory3_usage_daily'를 호출합니다.
         const { data, error } = await Factory3Io.supabase
             .from('v_factory3_usage_daily')
             .select('print_date, media_1, media_2, media_3, media_4, media_5, media_6, paper_a, paper_d')
@@ -123,7 +123,6 @@ Factory3Io.API = {
                 const date = row.print_date;
                 if (!Factory3Io.dataCache[date]) Factory3Io.dataCache[date] = {};
                 
-                // 기존 렌더링 파일(render.js)의 UI 바인딩 구조가 깨지지 않도록 포맷을 완벽하게 맞춰 매핑합니다.
                 Factory3Io.dataCache[date].usage_media = {
                     1: Number(row.media_1) || 0,
                     2: Number(row.media_2) || 0,
@@ -151,6 +150,30 @@ Factory3Io.API = {
 
         if (error) {
             alert('일괄 저장 실패: ' + error.message);
+            return false;
+        }
+        return true;
+    },
+
+    /* ─────────────────────────────────────────
+       메모 단건 저장 함수
+    ───────────────────────────────────────── */
+    saveMemo: async function (date, memoText) {
+        const d = Factory3Io.dataCache[date] || {};
+        
+        const { error } = await Factory3Io.supabase
+            .from('factory3_io')
+            .upsert({
+                date: date,
+                in_a: d.in_a || 0,
+                in_d: d.in_d || 0,
+                stock_a: d.stock_a || 0,
+                stock_d: d.stock_d || 0,
+                memo: memoText
+            }, { onConflict: 'date' });
+
+        if (error) {
+            alert('메모 저장 실패: ' + error.message);
             return false;
         }
         return true;

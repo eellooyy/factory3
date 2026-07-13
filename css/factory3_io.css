@@ -254,7 +254,7 @@
     min-width: 80px !important;
     width: 80px !important;
     box-sizing: border-box;
-    white-space: nowrap;
+    cursor: pointer; /* 메모 입력을 위해 커서 변경 */
 }
 
 .f3io-responsive-date {
@@ -387,4 +387,20 @@ td.f3io-sum-col.f3io-sum-mismatch {
 .f3io-wrapper.edit-mode .f3io-in-input:focus {
     background: #fff2cc !important;
     border: none !important;   /* 포커스 밑줄 제거 유지 */
+}
+
+/* =================================================
+   메모 기능 (우측 상단 빨간색 삼각형)
+   ================================================= */
+.f3io-has-memo {
+    position: relative;
+}
+.f3io-has-memo::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    border-top: 8px solid #ff3b30;
+    border-left: 8px solid transparent;
+    z-index: 12;
 }
