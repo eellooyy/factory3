@@ -88,7 +88,7 @@
             bindKeyboardNav();
 
             if (window.Factory3Header) {
-                window.Factory3Header.init({
+                state.headerApi = window.Factory3Header.init({
                     idPrefix: 'Contrast',
                     onDateChange: async (ds) => { // async 추가
                         state.selectedDate = ds;

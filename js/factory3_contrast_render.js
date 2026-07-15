@@ -72,6 +72,17 @@
         Factory3Contrast.main.state.selectedPanel = panelIdx; 
         Factory3Contrast.main.state.selectedCol = col;
 
+        // 공통 헤더 날짜 동기화
+        const headerApi = Factory3Contrast.main.state.headerApi;
+        if (headerApi && typeof headerApi.setCurrentDate === 'function') {
+            headerApi.setCurrentDate(ds, false);
+        } else {
+            const dateTextEl = document.getElementById('gf3ContrastDateText');
+            if (dateTextEl) {
+                dateTextEl.textContent = ds ? window.Factory3Utils.formatKoDate(ds) : '';
+            }
+        }
+
         [1,2,3,4,5,6].forEach(i => {
             const tr = document.querySelector(`#f3ctBody${i} tr[data-date="${ds}"]`);
             if (tr) tr.classList.add('f3ct-selected-row');
