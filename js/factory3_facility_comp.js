@@ -1,30 +1,55 @@
 /* factory3_facility_comp.js — 3공장 콤프레셔 가동 페이지 */
-/* 나중에 가동 데이터 연동, 이미지 로직 등을 이곳에 추가하세요. */
 
 (function () {
     'use strict';
 
-    // 페이지 초기화
     document.addEventListener('DOMContentLoaded', function () {
         console.log('[factory3_facility_comp] 콤프레셔 가동 페이지 초기화');
 
-        // TODO: 필요한 경우 Supabase 등에서 가동 데이터를 불러와 이곳에 렌더링
-        // 예: loadCompressorStatus();
+        initLightbox();
     });
 
-    // 가동 상태 데이터 로드 예시 (추후 구현)
-    // async function loadCompressorStatus() {
-    //     const { data, error } = await supabase
-    //         .from('compressor_log')
-    //         .select('*')
-    //         .order('logged_at', { ascending: false })
-    //         .limit(10);
-    //     if (error) { console.error(error); return; }
-    //     renderCompressorStatus(data);
-    // }
+    /* ── 라이트박스 ── */
+    function initLightbox() {
+        const lightbox    = document.getElementById('f3comp-lightbox');
+        const lbImg       = document.getElementById('f3comp-lightbox-img');
+        const closeBtn    = document.getElementById('f3comp-lightbox-close');
+        const imgWraps    = document.querySelectorAll('.f3comp-step-img-wrap');
 
-    // function renderCompressorStatus(data) {
-    //     // 렌더링 로직
-    // }
+        if (!lightbox || !lbImg || !closeBtn) return;
+
+        // 각 이미지 클릭 시 라이트박스 열기
+        imgWraps.forEach(function (wrap) {
+            wrap.addEventListener('click', function () {
+                const img = wrap.querySelector('.f3comp-step-img');
+                if (!img) return;
+                lbImg.src = img.src;
+                lbImg.alt = img.alt;
+                lightbox.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            });
+        });
+
+        // 닫기 버튼
+        closeBtn.addEventListener('click', closeLightbox);
+
+        // 배경 클릭으로 닫기
+        lightbox.addEventListener('click', function (e) {
+            if (e.target === lightbox) closeLightbox();
+        });
+
+        // ESC 키로 닫기
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeLightbox();
+        });
+
+        function closeLightbox() {
+            lightbox.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    }
+
+    // TODO: 필요한 경우 Supabase 등에서 가동 데이터를 불러와 이곳에 렌더링
+    // 예: loadCompressorStatus();
 
 })();
