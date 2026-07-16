@@ -1,6 +1,5 @@
-/* common_ui.js */
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. 기존 상단 메뉴 드롭다운 관리자 로직
+    // 1. 상단 메뉴 드롭다운 관리자 로직
     const titleWraps = document.querySelectorAll('.gf3-title-wrap, .f3i-title-wrap');
 
     titleWraps.forEach(wrap => {
@@ -32,33 +31,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 2. 공지사항 롤링 바 및 상세 모달 인터랙션 관리 모듈
+    // 2. 공지사항 롤링 바 및 상세 모달 인터랙션 관리 모듈 (Supabase DB 연동 버전)
     const NoticeManager = {
-        // 초기 샘플용 공지 정의 (마스터가 UI에서 수정 가능)
-        defaultNotices: [
-            { title: "📢 [공지] 3공장 정기 안전 점검 안내 (금주 금요일)", content: "이번주 금요일 생산 설비 전체 라인 대상 정기 소방 및 안전 점검이 진행됩니다. 작업자분들께서는 사전 정리정돈 부탁드립니다." },
-            { title: "🔗 [링크] 자재 실재고 실시간 대조 가이드라인 확인", content: "자재 대조 시 오차가 발생하는 경우 <a href='factory3_contrast.html'>실재고 및 ERP대조</a> 페이지에서 ERP 업로드 수치를 재점검하세요." },
-            { title: "🖼️ [참조] 배관 밸브 표준 개폐 현황 이미지 링크", content: "설비실 주 배관 표준 밸브 세팅 예시입니다.<br><br><img src='https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=500&q=80' alt='밸브 이미지'>" }
-        ],
+        supabase: null,
         notices: [],
         currentIdx: 0,
         tickerInterval: null,
         activeDetailIdx: null,
 
-        init: function() {
-            // 브라우저 보관함 확인 또는 기본 데이터 저장
-            const saved = localStorage.getItem('f3_static_notices');
-            if (saved) {
-                this.notices = JSON.parse(saved);
+        init: async function() {
+            // Supabase 클라이언트 초기화 연동
+            if (window.Factory3Utils && typeof window.Factory3Utils.initSupabase === 'function') {
+                this.supabase = window.Factory3Utils.initSupabase();
             } else {
-                this.notices = [...this.defaultNotices];
-                localStorage.setItem('f3_static_notices', JSON.stringify(this.notices));
+                console.error("Factory3Utils 또는 Supabase 라이브러리를 로드할 수 없습니다.");
+                return;
             }
+
+            // DB에서 공지사항 데이터 불러오기
+            await this.loadNotices();
 
             this.renderTicker();
             this.startTicker();
             this.bindEvents();
             this.renderList();
+        },
+
+        // DB로부터 공지사항 데이터 로드 (id 오름차순 정렬)
+        loadNotices: async function() {
+            try {
+                const { data, error } = await this.supabase
+                    .from('notice')
+                    .select('*')
+                    .order('id', { ascending: true });
+
+                if (error) throw error;
+                this.notices = data || [];
+            } catch (err) {
+                console.error("공지사항 DB 로드 실패:", err.message);
+                this.notices = []; // 에러 시 빈 배열로 예외 처리
+            }
         },
 
         // 한줄 공지 목록 생성
@@ -172,7 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // 상세 보기 전환 이벤트 연결
             body.querySelectorAll('.f3i-nlist-item').forEach(item => {
                 item.addEventListener('click', (e) => {
-                    // 삭제 버튼 클릭이 전파되어 상세보기로 넘어가지 않도록 방지
                     if (e.target.classList.contains('f3i-ndelete-btn')) return;
                     
                     const idx = parseInt(item.getAttribute('data-idx'));
@@ -203,35 +214,61 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
-        // 새 공지사항 데이터 추가 로직
-        addNotice: function() {
+        // 새 공지사항 데이터 추가 로직 (DB 연동)
+        addNotice: async function() {
             const newNotice = {
                 title: "📢 [새 공지] 공지사항 제목을 입력하세요",
                 content: "여기에 새로운 공지사항 세부 내용을 입력하세요."
             };
-            this.notices.push(newNotice);
-            localStorage.setItem('f3_static_notices', JSON.stringify(this.notices));
-            
-            this.renderTicker();
-            this.startTicker();
-            
-            // 추가 완료 직후 새로 만든 공지사항의 상세 편집 화면으로 즉시 전환하여 편의성 증대
-            this.renderDetail(this.notices.length - 1);
+
+            try {
+                // Supabase DB에 행 삽입 후 생성된 데이터 반환받기
+                const { data, error } = await this.supabase
+                    .from('notice')
+                    .insert([newNotice])
+                    .select();
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    this.notices.push(data[0]);
+                    this.renderTicker();
+                    this.startTicker();
+                    // 추가 완료 직후 새로 만든 공지사항의 상세 편집 화면으로 즉시 전환하여 편의성 증대
+                    this.renderDetail(this.notices.length - 1);
+                }
+            } catch (err) {
+                alert('공지사항을 생성하지 못했습니다: ' + err.message);
+            }
         },
 
-        // 공지사항 삭제 로직
-        deleteNotice: function(idx) {
-            this.notices.splice(idx, 1);
-            localStorage.setItem('f3_static_notices', JSON.stringify(this.notices));
-            
-            // 삭제 후 현재 롤링 중인 인덱스가 범위 밖을 벗어나지 않도록 보정
-            if (this.currentIdx >= this.notices.length) {
-                this.currentIdx = 0;
+        // 공지사항 삭제 로직 (DB 연동)
+        deleteNotice: async function(idx) {
+            const targetNotice = this.notices[idx];
+            if (!targetNotice || !targetNotice.id) return;
+
+            try {
+                // Supabase DB에서 id 일치 품목 삭제
+                const { error } = await this.supabase
+                    .from('notice')
+                    .delete()
+                    .eq('id', targetNotice.id);
+
+                if (error) throw error;
+
+                this.notices.splice(idx, 1);
+                
+                // 삭제 후 현재 롤링 중인 인덱스가 범위 밖을 벗어나지 않도록 보정
+                if (this.currentIdx >= this.notices.length) {
+                    this.currentIdx = 0;
+                }
+                
+                this.renderTicker();
+                this.startTicker();
+                this.renderList(); // 목록 갱신
+            } catch (err) {
+                alert('공지사항 삭제에 실패했습니다: ' + err.message);
             }
-            
-            this.renderTicker();
-            this.startTicker();
-            this.renderList(); // 목록 갱신
         },
 
         // 상세 화면 렌더링 및 에디팅 기능 연결
@@ -292,12 +329,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 editContent.focus();
                                 const imgHtml = `<br><img src="${url.trim()}" alt="첨부 이미지"><br>`;
                                 try {
-                                    // 사용자가 지정한 텍스트 입력 창 내부 커서 포지션에 맞추어 태그 자동 주입
                                     if (!document.execCommand('insertHTML', false, imgHtml)) {
                                         editContent.innerHTML += imgHtml;
                                     }
                                 } catch (e) {
-                                    // 호환성 이슈 대비 예외 처리: 커서 정보 손실 시 본문 끝단에 추가
                                     editContent.innerHTML += imgHtml;
                                 }
                             }
@@ -314,21 +349,40 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
-        // 입력된 공지 정보를 취합하여 단독 영구 저장 처리 진행
-        saveChanges: function() {
+        // 입력된 공지 정보를 취합하여 단독 영구 저장 처리 진행 (DB 연동)
+        saveChanges: async function() {
             if (this.activeDetailIdx === null) return;
             
             const editTitle = document.getElementById('f3iEditTitle');
             const editContent = document.getElementById('f3iEditContent');
 
             if (editTitle && editContent) {
-                this.notices[this.activeDetailIdx].title = editTitle.innerText.trim();
-                this.notices[this.activeDetailIdx].content = editContent.innerHTML.trim();
-                
-                localStorage.setItem('f3_static_notices', JSON.stringify(this.notices));
-                this.renderTicker();
-                this.startTicker();
-                alert('공지사항 변경 사항이 성공적으로 독립 저장되었습니다.');
+                const targetNotice = this.notices[this.activeDetailIdx];
+                const updatedTitle = editTitle.innerText.trim();
+                const updatedContent = editContent.innerHTML.trim();
+
+                try {
+                    // Supabase DB에 변경 항목 반영 (id 기준 매칭)
+                    const { error } = await this.supabase
+                        .from('notice')
+                        .update({
+                            title: updatedTitle,
+                            content: updatedContent
+                        })
+                        .eq('id', targetNotice.id);
+
+                    if (error) throw error;
+
+                    // 로컬 메모리 동기화
+                    targetNotice.title = updatedTitle;
+                    targetNotice.content = updatedContent;
+                    
+                    this.renderTicker();
+                    this.startTicker();
+                    alert('공지사항 변경 사항이 성공적으로 저장되었습니다.');
+                } catch (err) {
+                    alert('공지사항을 저장하지 못했습니다: ' + err.message);
+                }
             }
         }
     };
