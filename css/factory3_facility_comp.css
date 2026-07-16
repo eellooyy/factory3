@@ -5,7 +5,7 @@
     padding-top: 16px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px; /* 위아래 간격 축소 (기존 24px) */
 }
 
 /* ── 페이지 배너 ── */
@@ -15,7 +15,7 @@
     gap: 18px;
     background: linear-gradient(135deg, #0d1b3e 0%, #1a3a6b 50%, #0f5298 100%);
     border-radius: 18px;
-    padding: 26px 32px;
+    padding: 16px 24px; /* 위아래 및 좌우 폭 좁힘 (기존 26px 32px) */
     box-shadow: 0 8px 32px rgba(15, 52, 152, 0.35);
     color: #fff;
     position: relative;
@@ -56,59 +56,31 @@
     flex: 1;
 }
 .f3comp-banner-title {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 700;
     color: #fff;
     margin: 0;
     letter-spacing: -0.4px;
 }
-.f3comp-banner-desc {
-    font-size: 13px;
-    color: rgba(255,255,255,0.65);
-    margin: 0;
-}
 
+/* 우측 배지 영역에 기존 주황색 테두리 경고 디자인 이식 */
 .f3comp-banner-badge {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(255,255,255,0.12);
-    border: 1px solid rgba(255,255,255,0.22);
-    border-radius: 50px;
-    padding: 6px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #a8d8ff;
-    flex-shrink: 0;
-    backdrop-filter: blur(4px);
-}
-.f3comp-banner-badge .material-symbols-outlined {
-    font-size: 18px;
-}
-
-/* ── 절차 헤더 ── */
-.f3comp-procedure-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 15px;
-    font-weight: 700;
-    color: #1d1d1f;
-    padding-bottom: 0;
-}
-.f3comp-procedure-header .material-symbols-outlined {
-    font-size: 22px;
-    color: #0055d4;
-}
-.f3comp-procedure-note {
-    margin-left: auto;
-    font-size: 12px;
-    font-weight: 500;
-    color: #e05c00;
     background: #fff4ec;
     border: 1px solid #ffd0a8;
     border-radius: 50px;
-    padding: 3px 12px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #e05c00;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(224, 92, 0, 0.15);
+}
+.f3comp-banner-badge .material-symbols-outlined {
+    font-size: 18px;
+    color: #e05c00;
 }
 
 /* ── 스텝 그리드 ── */
@@ -396,17 +368,15 @@
         transform: rotate(90deg);
     }
     .f3comp-page-banner {
-        padding: 20px 20px;
+        padding: 16px 20px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
     }
     .f3comp-banner-badge {
-        display: none;
+        align-self: flex-start; /* 모바일에서도 주황색 알림 배지가 완전히 노출되도록 유지 */
     }
     .f3comp-banner-title {
         font-size: 18px;
-    }
-}
-@media (max-width: 600px) {
-    .f3comp-procedure-note {
-        display: none;
     }
 }
