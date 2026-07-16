@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 items[this.currentIdx].classList.remove('active');
                 this.currentIdx = (this.currentIdx + 1) % items.length;
                 items[this.currentIdx].classList.add('active');
-            }, 3500);
+            }, 10000);
         },
 
         // 이벤트 바인딩 처리
