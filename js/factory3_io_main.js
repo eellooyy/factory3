@@ -273,90 +273,82 @@ window.Factory3Io = window.Factory3Io || {};
     }
 
     /* ─────────────────────────────────────────
-       마스터 전용: 재고 실시간 동기화/재계산 처리 (어제까지만 검증 및 저장)
+       마스터 전용: 재고 실시간 동기화/재계산 처리
+       (Dirty-check 방식 폐기 → "전일" 재고를 실행 순간의 DB 상태로
+        무조건 재계산하여 덮어쓰기 저장하는 방식으로 변경)
     ───────────────────────────────────────── */
     async function handleSyncStocks() {
         if (Factory3Io.state.loading) return;
 
-        // 1. 최신 계산 상태 보장
-        API.recalcAllStocks();
-
-        // 2. 변동 사항 검지 (Dirty Checking)
-        const allDates = Object.keys(Factory3Io.dataCache);
-        const batchRows = [];
         const todayStr = Utils.todayStr();
+        const targetDate = Utils.addDays(todayStr, -1); // 오늘 기준 전일(어제)
 
-        allDates.forEach(ds => {
-            // 오늘을 포함한 미래 날짜는 저장 대상에서 제외 (어제 날짜까지만 처리)
-            if (ds >= todayStr) return;
-
-            const current = Factory3Io.dataCache[ds] || {};
-            const original = (Factory3Io.originalDbCache && Factory3Io.originalDbCache[ds]) || {};
-
-            // [수정] 데이터 타입(String vs Number)으로 인한 오작동을 막기 위해 엄격한 Number 변환 대조 적용
-            const isChanged = (
-                (Number(current.in_a) || 0) !== (Number(original.in_a) || 0) ||
-                (Number(current.in_d) || 0) !== (Number(original.in_d) || 0) ||
-                (Number(current.stock_a) || 0) !== (Number(original.stock_a) || 0) ||
-                (Number(current.stock_d) || 0) !== (Number(original.stock_d) || 0)
-            );
-
-            if (isChanged) {
-                batchRows.push({
-                    date: ds,
-                    in_a: current.in_a || 0,
-                    in_d: current.in_d || 0,
-                    stock_a: current.stock_a || 0,
-                    stock_d: current.stock_d || 0
-                });
-            }
-        });
-
-        // [정상 작동] 변동 사항이 없는 경우 저장을 시도하지 않고 알림창을 띄웁니다.
-        if (batchRows.length === 0) {
-            alert('갱신할 재고 변동 사항이 없습니다. 현재 데이터베이스가 최신 상태입니다.');
+        if (!confirm(`${Utils.fmtKo(targetDate)} 재고를 지금 시점의 DB 데이터를 기준으로 다시 계산하여 저장하시겠습니까?`)) {
             return;
         }
 
-        if (!confirm(`어제까지의 재고 변동 사항이 발견된 ${batchRows.length}일치의 데이터를 DB에 최종 저장하시겠습니까?`)) {
-            return;
-        }
-
-        // 3. 아이콘 360도 회전 애니메이션 시작 및 DB 전송
+        // 아이콘 360도 회전 애니메이션 시작
         const syncBtn = document.getElementById('gf3IoTitleSyncBtn');
         const iconSpan = syncBtn ? syncBtn.querySelector('.material-symbols-outlined') : null;
-
         if (iconSpan) {
             iconSpan.style.transition = 'transform 1s ease-in-out';
             iconSpan.style.transform = 'rotate(720deg)';
         }
 
-        const ok = await API.saveIncomingBatch(batchRows);
-        if (ok) {
-            // 성공 시 캐시 백업 업데이트
-            if (!Factory3Io.originalDbCache) Factory3Io.originalDbCache = {};
-            batchRows.forEach(row => {
-                const ds = row.date;
-                Factory3Io.originalDbCache[ds] = {
+        try {
+            // 1. 실행 "순간"의 DB 상태를 다시 조회 (로컬 캐시만 믿지 않고 새로 fetch)
+            //    - 기존 로직은 로컬 dataCache를 recalc한 값과, 로드 직후 그 값 그대로 찍어둔
+            //      originalDbCache를 비교했기 때문에 사실상 항상 "변동 없음"으로 판정되던 문제가 있었음.
+            const start = Utils.addDays(targetDate, -21);
+            const end = targetDate;
+
+            Factory3Io.baselineRow = null; // 기준점도 최신 DB로 다시 탐색
+            await API.fetchBaseline(start);
+            await Promise.all([
+                API.loadIoTableRange(start, end),
+                API.loadOutgoingRange(start, end)
+            ]);
+
+            // 2. 최신 DB 데이터 기준으로 재고 재계산
+            API.recalcAllStocks();
+
+            // 3. 전일자 재계산 결과 추출 (변동 여부와 무관하게 항상 사용)
+            const d = Factory3Io.dataCache[targetDate] || {};
+            const row = {
+                date: targetDate,
+                in_a: d.in_a || 0,
+                in_d: d.in_d || 0,
+                stock_a: d.stock_a || 0,
+                stock_d: d.stock_d || 0
+            };
+
+            // 4. 변동 유무를 따지지 않고 실행 시점 계산값으로 무조건 덮어쓰기 저장
+            const ok = await API.saveIncomingBatch([row]);
+
+            if (ok) {
+                if (!Factory3Io.originalDbCache) Factory3Io.originalDbCache = {};
+                Factory3Io.originalDbCache[targetDate] = {
                     in_a: Number(row.in_a),
                     in_d: Number(row.in_d),
                     stock_a: Number(row.stock_a),
                     stock_d: Number(row.stock_d)
                 };
-            });
 
-            Render.rerenderAllRows(true);
-            alert('재고가 실시간으로 성공적으로 재계산 및 연동 저장되었습니다.');
-        } else {
-            alert('재고 데이터베이스 동기화에 실패했습니다.');
-        }
-
-        // 애니메이션 효과 정상 초기화
-        if (iconSpan) {
-            setTimeout(() => {
-                iconSpan.style.transition = 'none';
-                iconSpan.style.transform = 'rotate(0deg)';
-            }, 1000);
+                Render.rerenderAllRows(true);
+                alert(`${Utils.fmtKo(targetDate)} 재고(A: ${row.stock_a.toLocaleString()}, D: ${row.stock_d.toLocaleString()})가 최신 DB 기준으로 재계산되어 저장되었습니다.`);
+            } else {
+                alert('재고 데이터베이스 동기화에 실패했습니다.');
+            }
+        } catch (err) {
+            console.error('[factory3_io] 재고 동기화 오류:', err);
+            alert('재고 동기화 중 오류가 발생했습니다: ' + err.message);
+        } finally {
+            if (iconSpan) {
+                setTimeout(() => {
+                    iconSpan.style.transition = 'none';
+                    iconSpan.style.transform = 'rotate(0deg)';
+                }, 1000);
+            }
         }
     }
 
