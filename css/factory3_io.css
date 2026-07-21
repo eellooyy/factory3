@@ -110,7 +110,7 @@
    ================================================ */
 .f3io-scroll-area {
     position: relative;
-    height: 580px;
+    height: 308px;
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: none;
@@ -557,4 +557,248 @@ td.f3io-sum-col.f3io-sum-mismatch {
         min-width: 54px !important;
         width: 54px !important;
     }
+}
+
+/* ================================================
+   2층식 레이아웃 & 토글 스위치 공통 스타일
+   ================================================ */
+.f3io-floor-container {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 18px 20px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+    border: 1px solid #dcdce4;
+    margin-bottom: 20px;
+}
+
+.panel-header-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    border-bottom: 1.5px solid #e5e5ea;
+    padding-bottom: 12px;
+}
+
+.panel-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #000000 !important;
+    letter-spacing: -0.3px;
+}
+
+/* 스크롤 ON/OFF 토글 스위치 디자인 */
+.f1-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 22px;
+    margin: 0;
+}
+
+.f1-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.f1-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #e5e5ea;
+    transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 22px;
+    border: 1px solid #d1d1d6;
+}
+
+.f1-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: #ffffff;
+    transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+
+.f1-toggle-switch input:checked + .f1-toggle-slider {
+    background-color: #007aff;
+    border-color: #007aff;
+}
+
+.f1-toggle-switch input:checked + .f1-toggle-slider:before {
+    transform: translateX(16px);
+}
+
+.f3io-scroll-area.locked, .f3ct-scroll-area.locked {
+    touch-action: none;
+}
+
+/* ================================================
+   실재고 및 ERP 대조 (2층) 스타일 정의
+   ================================================ */
+.f3ct-wrapper {
+    position: relative;
+    z-index: 1;
+}
+
+.f3ct-panels-outer {
+    display: flex;
+    gap: 12px; 
+    align-items: stretch;
+    background: transparent;
+    overflow-x: auto; 
+    padding-bottom: 10px;
+    width: 100%;
+}
+
+.f3ct-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid #e5e5ea; 
+    border-radius: 12px;       
+    box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+}
+
+/* 1번 패널: 1.0에서 1.3으로 확대 */
+.f3ct-panel-1 { flex: 1.3; min-width: 240px; }
+
+/* 2번 패널: 기존 유지 (0.9) */
+.f3ct-panel-2 { flex: 0.9; min-width: 160px; }
+
+/* 3, 4번 패널: 1.2에서 1.05로 축소 (동일 크기 유지) */
+.f3ct-panel-3 { flex: 1.05; min-width: 160px; }
+.f3ct-panel-4 { flex: 1.05; min-width: 160px; }
+
+/* 5번 패널: 기존 유지 (0.8) */
+.f3ct-panel-5 { flex: 0.8; min-width: 140px; }
+
+/* 6번 패널: 기존 유지 (0.33) */
+.f3ct-panel-6 { flex: 0.33; min-width: 80px; }
+
+.f3ct-scroll-area {
+    position: relative;
+    height: 334px; /* 5일치로 높이 설정 */
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.f3ct-scroll-area::-webkit-scrollbar { display: none; }
+
+.f3ct-cursor {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08), inset 0 0 4px rgba(255,255,255,0.4);
+    border-radius: 6px;
+    z-index: 5;
+    opacity: 0;
+    transition:
+        top 0.12s cubic-bezier(0.23, 1, 0.32, 1),
+        left 0.12s cubic-bezier(0.23, 1, 0.32, 1),
+        width 0.10s ease-out,
+        height 0.10s ease-out,
+        opacity 0.10s ease-out;
+}
+.f3ct-cursor.active { opacity: 1; }
+
+.f3ct-table {
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.f3ct-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.f3ct-thead-lv1 th {
+    position: sticky;
+    top: 0; 
+    z-index: 100;
+    background: #ffffff;
+    padding: 10px 2px 4px;
+    font-size: 13px; font-weight: 800; color: #1d1d1f; text-align: center;
+    border-bottom: 1px solid #e5e5ea; height: 38px; white-space: nowrap;
+}
+
+.f3ct-thead-lv2 th {
+    position: sticky;
+    top: 38px; 
+    z-index: 100;
+    background: #ffffff;
+    padding: 6px 2px 8px;
+    font-size: 11px; font-weight: 700; color: #636366; text-align: center;
+    border-bottom: 1px solid #e5e5ea; height: 36px; white-space: nowrap;
+}
+
+.f3ct-date-th {
+    position: sticky;
+    top: 0; left: 0;
+    z-index: 105 !important; 
+    background: #ffffff !important;
+    border-right: 1px solid #e5e5ea !important;
+    border-bottom: 1px solid #e5e5ea !important;
+    width: 82px; min-width: 82px; max-width: 82px;
+}
+
+.f3ct-date-td {
+    position: sticky; left: 0; z-index: 90;
+    background: #ffffff;
+    text-align: center; width: 82px; min-width: 82px; max-width: 82px;
+    border-right: 1px solid #e5e5ea !important; border-bottom: 1px solid #f2f2f7;
+    font-size: 12px; font-weight: 600; padding: 5px 0; white-space: nowrap;
+}
+
+.f3ct-data-cell {
+    padding: 9px 2px; font-size: 12.5px; font-weight: 600;
+    text-align: center; border-bottom: 1px solid #f2f2f7; color: #1d1d1f;
+    height: 52px; cursor: pointer; transition: background 0.1s;
+}
+
+.f3ct-sum-th { color: #007aff !important; }
+.f3ct-sum-col { font-weight: 800 !important; color: #007aff !important; background: rgba(0, 122, 255, 0.02) !important; }
+
+.f3ct-empty { color: #c7c7cc; font-weight: 400; }
+.f3ct-negative { color: #ff3b30; font-weight: 700; }
+
+.f3ct-row-today td { background: #f2f9ff !important; }
+.f3ct-row-today .f3ct-date-td { background: #e1f0ff !important; }
+.f3ct-selected-row td { background: #f5f5f7 !important; }
+.f3ct-selected-row .f3ct-date-td { background: #e5e5ea !important; }
+.f3ct-row-today.f3ct-selected-row td { background: #eaf5ff !important; }
+.f3ct-row-today.f3ct-selected-row .f3ct-date-td { background: #d0e7ff !important; }
+
+.f3ct-thead-lv1 th.f3ct-header-active,
+.f3ct-thead-lv2 th.f3ct-header-active,
+.f3ct-group-th.f3ct-header-active {
+    background-color: #ffe8cc !important; 
+    color: #d35400 !important;
+}
+
+.f3ct-sat { color: #007aff !important; }
+.f3ct-sun { color: #ff3b30 !important; }
+.f3ct-selected-cell { font-weight: 900 !important; color: #000000 !important; position: relative; z-index: 10; }
+.f3ct-table tbody tr:hover td { background: #fafafa; }
+
+.style-disabled {
+    opacity: 0.25 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important; 
+    box-shadow: none !important;
+}
+
+@media (max-width: 1100px) {
+    .f3ct-panels-outer { flex-direction: column; }
+    .f3ct-panel { width: 100%; min-width: 0; }
+    .f3ct-scroll-area { height: 360px; }
 }

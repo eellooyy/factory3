@@ -20,11 +20,7 @@
     }
 
     // Supabase 뷰에서 데이터 범위 단위로 가져오기
-    async function fetchDataRange(targetDateStr) {
-        const dates = getDatesRange(targetDateStr);
-        const minDate = dates[0];
-        const maxDate = dates[dates.length - 1];
-
+    async function fetchDataRange(minDate, maxDate) {
         const { data, error } = await supabase
             .from('v_daily_factory3_stock')
             .select('*')

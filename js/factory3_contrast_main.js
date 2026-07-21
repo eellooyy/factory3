@@ -8,6 +8,12 @@
         selectedDate: Factory3Contrast.constant.yesterdayStr(),
         selectedPanel: null,
         selectedCol: null,
+        isScrollUnlocked: false, // 기본 락 상태
+        oldestLoadedDate: null,
+        loadedDates: [],
+        loading: false,
+        isLoadingPrev: false,
+        headerApi: null
     };
 
     let _syncLock = false;
@@ -15,7 +21,16 @@
         Factory3Contrast.constant.PIDS.forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
+
+            // 스크롤 잠금 상태 시 마우스 휠 동작 차단
+            el.addEventListener('wheel', (e) => {
+                if (!state.isScrollUnlocked) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
             el.addEventListener('scroll', () => {
+                if (!state.isScrollUnlocked) return; // 잠금 상태 시 동기화 및 로드 차단
                 if (_syncLock) return;
                 _syncLock = true;
                 const top = el.scrollTop;
@@ -23,6 +38,10 @@
                     const t = document.getElementById(tid); if(t) t.scrollTop = top;
                 });
                 _syncLock = false;
+
+                if (top <= 10 && !state.isLoadingPrev && !state.loading && state.oldestLoadedDate) {
+                    loadPrevContrastChunk();
+                }
             });
         });
     }
@@ -35,7 +54,7 @@
                 const td = e.target.closest('td[data-col]');
                 if (!td) return;
                 const tr = td.closest('tr[data-date]');
-                Factory3Contrast.render.applyHighlight(i, tr.getAttribute('data-date'), td.getAttribute('data-col'));
+                Factory3Contrast.render.applyHighlight(i, tr.getAttribute('data-date'), td.getAttribute('data-col'), true);
             });
         });
     }
@@ -56,7 +75,7 @@
             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                 const target = e.key === 'ArrowUp' ? curRow.previousElementSibling : curRow.nextElementSibling;
                 if (target && target.getAttribute('data-date')) {
-                    Factory3Contrast.render.applyHighlight(panelIdx, target.getAttribute('data-date'), String(colNum));
+                    Factory3Contrast.render.applyHighlight(panelIdx, target.getAttribute('data-date'), String(colNum), true);
                     Factory3Contrast.render.scrollToActiveCell(panelIdx);
                 }
             } else {
@@ -75,50 +94,116 @@
                         else colNum = colCount[panelIdx]; 
                     }
                 }
-                Factory3Contrast.render.applyHighlight(panelIdx, state.selectedDate, String(colNum));
+                Factory3Contrast.render.applyHighlight(panelIdx, state.selectedDate, String(colNum), true);
                 Factory3Contrast.render.scrollToActiveCell(panelIdx);
             }
         });
     }
 
-    const Module = {
-        init: async function () { // async 추가
-            bindScrollSync(); 
-            bindClicks();
-            bindKeyboardNav();
+    function bindScrollToggle() {
+        const toggle = document.getElementById('contrastScrollToggle');
+        if (!toggle) return;
 
-            if (window.Factory3Header) {
-                state.headerApi = window.Factory3Header.init({
-                    idPrefix: 'Contrast',
-                    onDateChange: async (ds) => { // async 추가
-                        state.selectedDate = ds;
-                        Factory3Contrast.render.clearHighlights();
-                        
-                        // 날짜 변경 시 Supabase에서 새로운 범위의 데이터를 로드합니다.
-                        await Factory3Contrast.api.fetchDataRange(ds); 
-                        
-                        Factory3Contrast.render.renderAllRows(); 
-                        Factory3Contrast.render.scrollToDate(ds); 
-                    }, 
-                    onSave: () => {} 
-                });
+        toggle.checked = !!state.isScrollUnlocked;
+        updateScrollLockUI();
+
+        toggle.addEventListener('change', (e) => {
+            state.isScrollUnlocked = e.target.checked;
+            updateScrollLockUI();
+        });
+    }
+
+    function updateScrollLockUI() {
+        Factory3Contrast.constant.PIDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (state.isScrollUnlocked) {
+                el.classList.remove('locked');
+            } else {
+                el.classList.add('locked');
+            }
+        });
+    }
+
+    async function loadPrevContrastChunk() {
+        if (state.isLoadingPrev || state.loading || !state.oldestLoadedDate) return;
+        state.isLoadingPrev = true;
+
+        try {
+            const end = Factory3Utils.addDays(state.oldestLoadedDate, -1);
+            const start = Factory3Utils.addDays(end, -14); // 15일 단위로 추가
+
+            await Factory3Contrast.api.fetchDataRange(start, end);
+
+            const dates = [];
+            let curr = new Date(start + 'T00:00:00');
+            const last = new Date(state.oldestLoadedDate + 'T00:00:00');
+            while (curr < last) {
+                const pad = Factory3Contrast.constant.pad;
+                dates.push(`${curr.getFullYear()}-${pad(curr.getMonth()+1)}-${pad(curr.getDate())}`);
+                curr.setDate(curr.getDate() + 1);
             }
 
-            state.selectedDate = Factory3Contrast.constant.yesterdayStr();
-            
-            // 최초 실행 시 Supabase에서 데이터를 연동합니다.
-            await Factory3Contrast.api.fetchDataRange(state.selectedDate);
-            
-            Factory3Contrast.render.renderAllRows();
-            Factory3Contrast.render.scrollToDate(Factory3Contrast.constant.yesterdayStr());
+            state.loadedDates = dates.concat(state.loadedDates);
+
+            const panels = Factory3Contrast.constant.PIDS.map(id => document.getElementById(id));
+            const prevHeights = panels.map(p => p ? p.scrollHeight : 0);
+
+            Factory3Contrast.render.renderAllRows(state.loadedDates);
+            state.oldestLoadedDate = start;
+
+            requestAnimationFrame(() => {
+                panels.forEach((p, idx) => {
+                    if (p) {
+                        const diff = p.scrollHeight - prevHeights[idx];
+                        p.scrollTop += diff;
+                    }
+                });
+            });
+        } catch (err) {
+            console.error('[factory3_contrast] 이전 데이터 로드 오류:', err);
+        } finally {
+            state.isLoadingPrev = false;
         }
-    };
+    }
+
+    async function loadInitialContrastData(startDate, endDate) {
+        state.loading = true;
+        try {
+            await Factory3Contrast.api.fetchDataRange(startDate, endDate);
+
+            const dates = [];
+            let curr = new Date(startDate + 'T00:00:00');
+            const last = new Date(endDate + 'T00:00:00');
+            while (curr <= last) {
+                const pad = Factory3Contrast.constant.pad;
+                dates.push(`${curr.getFullYear()}-${pad(curr.getMonth()+1)}-${pad(curr.getDate())}`);
+                curr.setDate(curr.getDate() + 1);
+            }
+
+            state.loadedDates = dates;
+            state.oldestLoadedDate = startDate;
+
+            Factory3Contrast.render.renderAllRows(dates);
+            Factory3Contrast.render.scrollToDate(state.selectedDate || Factory3Contrast.constant.yesterdayStr());
+        } catch (err) {
+            console.error('[factory3_contrast] 초기 로드 실패:', err);
+        } finally {
+            state.loading = false;
+        }
+    }
 
     Factory3Contrast.main = {
-        state: state
+        state: state,
+        initModule: async function () {
+            bindClicks();
+            bindKeyboardNav();
+            bindScrollSync();
+            bindScrollToggle();
+        },
+        loadInitialData: loadInitialContrastData,
+        loadPrevContrastChunk: loadPrevContrastChunk,
+        updateScrollLockUI: updateScrollLockUI
     };
-
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', Module.init);
-    else Module.init();
 
 })();

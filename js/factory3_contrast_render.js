@@ -4,9 +4,11 @@
 
     window.Factory3Contrast = window.Factory3Contrast || {};
 
-    function renderAllRows() {
-        const targetStr = Factory3Contrast.main.state.selectedDate || Factory3Contrast.constant.yesterdayStr();
-        const dates = Factory3Contrast.api.getDatesRange(targetStr);
+    function renderAllRows(dates) {
+        if (!dates) {
+            const targetStr = Factory3Contrast.main.state.selectedDate || Factory3Contrast.constant.yesterdayStr();
+            dates = Factory3Contrast.api.getDatesRange(targetStr);
+        }
         const rows = dates.map(ds => Factory3Contrast.api.buildRow(ds));
 
         // 오타 완전 수정 완료 (h6('')에서 h6=''으로 원복)
@@ -66,18 +68,18 @@
         [1,2,3,4,5,6].forEach(i => { const c = document.getElementById(`f3ctCursor${i}`); if (c) c.classList.remove('active'); });
     }
 
-    function applyHighlight(panelIdx, ds, col) {
+    function applyHighlight(panelIdx, ds, col, syncToFloor1 = true) {
         clearHighlights();
         Factory3Contrast.main.state.selectedDate = ds; 
         Factory3Contrast.main.state.selectedPanel = panelIdx; 
         Factory3Contrast.main.state.selectedCol = col;
 
         // 공통 헤더 날짜 동기화
-        const headerApi = Factory3Contrast.main.state.headerApi;
+        const headerApi = Factory3Contrast.main.state.headerApi || (window.Factory3Io && window.Factory3Io.state && window.Factory3Io.state.headerApi);
         if (headerApi && typeof headerApi.setCurrentDate === 'function') {
             headerApi.setCurrentDate(ds, false);
         } else {
-            const dateTextEl = document.getElementById('gf3ContrastDateText');
+            const dateTextEl = document.getElementById('gf3IoDateText');
             if (dateTextEl) {
                 dateTextEl.textContent = ds ? window.Factory3Utils.formatKoDate(ds) : '';
             }
@@ -88,28 +90,34 @@
             if (tr) tr.classList.add('f3ct-selected-row');
         });
 
-        const td = document.querySelector(`#f3ctBody${panelIdx} tr[data-date="${ds}"] td[data-col="${col}"]`);
-        if (td) {
-            td.classList.add('f3ct-selected-cell');
-            const cur = document.getElementById(`f3ctCursor${panelIdx}`);
-            const pan = document.getElementById(`f3ctScrollPanel${panelIdx}`);
-            
-            if(cur && pan) {
-                let top=0, left=0, el=td;
-                while(el && el!==pan && el!==document.body) { top+=el.offsetTop; left+=el.offsetLeft; el=el.offsetParent; }
-                cur.style.width = td.offsetWidth+'px'; cur.style.height = td.offsetHeight+'px';
-                cur.style.left = left+'px'; cur.style.top = top+'px';
-                cur.classList.add('active');
-            }
+        if (panelIdx && col) {
+            const td = document.querySelector(`#f3ctBody${panelIdx} tr[data-date="${ds}"] td[data-col="${col}"]`);
+            if (td) {
+                td.classList.add('f3ct-selected-cell');
+                const cur = document.getElementById(`f3ctCursor${panelIdx}`);
+                const pan = document.getElementById(`f3ctScrollPanel${panelIdx}`);
+                
+                if(cur && pan) {
+                    let top=0, left=0, el=td;
+                    while(el && el!==pan && el!==document.body) { top+=el.offsetTop; left+=el.offsetLeft; el=el.offsetParent; }
+                    cur.style.width = td.offsetWidth+'px'; cur.style.height = td.offsetHeight+'px';
+                    cur.style.left = left+'px'; cur.style.top = top+'px';
+                    cur.classList.add('active');
+                }
 
-            if (pan) {
-                const lv2 = pan.querySelector(`.f3ct-thead-lv2 th[data-col="${col}"]`);
-                if (lv2) {
-                    lv2.classList.add('f3ct-header-active');
-                    const lv1 = pan.querySelector(`.f3ct-thead-lv1 th.f3ct-group-th`);
-                    if (lv1) lv1.classList.add('f3ct-header-active');
+                if (pan) {
+                    const lv2 = pan.querySelector(`.f3ct-thead-lv2 th[data-col="${col}"]`);
+                    if (lv2) {
+                        lv2.classList.add('f3ct-header-active');
+                        const lv1 = pan.querySelector(`.f3ct-thead-lv1 th.f3ct-group-th`);
+                        if (lv1) lv1.classList.add('f3ct-header-active');
+                    }
                 }
             }
+        }
+
+        if (syncToFloor1 && window.Factory3Io && window.Factory3Io.Main && typeof window.Factory3Io.Main.applyHighlightRowOnly === 'function') {
+            window.Factory3Io.Main.applyHighlightRowOnly(ds);
         }
     }
 

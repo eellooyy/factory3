@@ -17,6 +17,7 @@ window.Factory3Io = window.Factory3Io || {};
         init: async function () {
             // 초기 구동 시 스크롤, 클릭, 키보드 네비게이션 이벤트를 선행 바인딩합니다.
             bindScrollSync();
+            bindScrollToggle();
             bindBodyClicks();
             bindBodyDoubleClicks(); /* 더블클릭 이벤트(모든 셀 확장) 연동 */
             bindKeyboardNav();
@@ -24,12 +25,24 @@ window.Factory3Io = window.Factory3Io || {};
             // 공통 헤더 모듈 연동 정의
             Factory3Io.state.headerApi = window.Factory3Header.init({
                 idPrefix: 'Io',
-                onDateChange: (dateStr) => {
+                onDateChange: async (dateStr) => {
                     if (Factory3Io.state.headerApi && Factory3Io.state.headerApi.isEditMode()) {
                         onEditModeExit();
                     }
                     clearHighlights();
-                    loadDataChunk(dateStr);
+                    
+                    const today = Utils.todayStr();
+                    const start = Factory3Io.state.oldestLoadedDate;
+                    if (start && dateStr >= start && dateStr <= today) {
+                        // 이미 로드된 범위 안인 경우, 새로 fetch하지 않고 하이라이트 및 스크롤만 이동
+                        scrollToYesterday(dateStr);
+                        applyHighlight(1, dateStr, null, true);
+                        if (window.Factory3Contrast && window.Factory3Contrast.render && typeof window.Factory3Contrast.render.scrollToDate === 'function') {
+                            window.Factory3Contrast.render.scrollToDate(dateStr);
+                        }
+                    } else {
+                        await loadDataChunk(dateStr);
+                    }
                 },
                 onSave: handleSave,
             });
@@ -77,20 +90,21 @@ window.Factory3Io = window.Factory3Io || {};
                 });
             }
 
-            // 불필요한 컨트롤 일시 비활성화 처리
-            ['gf3IoPrevBtn', 'gf3IoNextBtn', 'gf3IoExcelBtn'].forEach(id => {
-                const btn = document.getElementById(id);
-                if (btn) { btn.disabled = true; btn.style.opacity = '0.3'; btn.style.pointerEvents = 'none'; }
-            });
+            // 2층 모듈(Contrast) 초기화
+            if (window.Factory3Contrast && window.Factory3Contrast.main && typeof window.Factory3Contrast.main.initModule === 'function') {
+                await window.Factory3Contrast.main.initModule();
+            }
 
-            // 기본값으로 어제 날짜 기준 레이아웃 구동 시작
+            // 기본값으로 오늘(또는 어제) 날짜 기준 레이아웃 구동 시작
             await loadDataChunk(Utils.yesterdayStr());
-        }
+        },
+
+        applyHighlightRowOnly: applyHighlightRowOnly
     };
 
     /* ─────────────────────────────────────────
        초기 로드 및 지연 로드 컨트롤러
-    ───────────────────────────────────────── */
+     ───────────────────────────────────────── */
     async function loadDataChunk(targetDateStr) {
         if (Factory3Io.state.loading) return;
         Factory3Io.state.loading = true;
@@ -98,9 +112,13 @@ window.Factory3Io = window.Factory3Io || {};
         Render.showLoading();
 
         try {
-            const baseDate = targetDateStr || Utils.todayStr();
+            const today = Utils.todayStr();
+            let baseDate = targetDateStr || Utils.yesterdayStr();
+            if (baseDate > today) baseDate = today;
+
+            // 과거 21일부터 오늘까지를 고정 범위로 잡아서 날짜가 오늘 이후로 넘어가지 않도록 처리
             const start = Utils.addDays(baseDate, -21);
-            const end = Utils.addDays(baseDate, 7);
+            const end = today; 
             
             await API.fetchBaseline(start);
             await Promise.all([
@@ -121,7 +139,6 @@ window.Factory3Io = window.Factory3Io || {};
             API.recalcAllStocks();
 
             // [수정] 연산이 완료된 시점의 무결한 상태를 원본 스냅샷(Clean State)으로 등록합니다.
-            // 데이터 타입 불일치 방지를 위해 Number 처리를 명시합니다.
             Factory3Io.originalDbCache = {};
             dates.forEach(ds => {
                 const cacheVal = Factory3Io.dataCache[ds] || {};
@@ -139,8 +156,16 @@ window.Factory3Io = window.Factory3Io || {};
             Factory3Io.state.oldestLoadedDate = start;
             Factory3Io.state.initialLoaded = true;
             
+            // 2층 (Contrast) 데이터 범위 로드 및 렌더링
+            if (window.Factory3Contrast && window.Factory3Contrast.main && typeof window.Factory3Contrast.main.loadInitialData === 'function') {
+                await window.Factory3Contrast.main.loadInitialData(start, end);
+            }
+
             scrollToYesterday(baseDate);
             Render.updateDateText(baseDate);
+
+            // 초기 선택 하이라이팅
+            applyHighlight(1, baseDate, null, true);
 
         } catch (err) {
             console.error('[factory3_io] 로드 실패:', err);
@@ -152,7 +177,7 @@ window.Factory3Io = window.Factory3Io || {};
 
     /* ─────────────────────────────────────────
        과거 스크롤 도달 시 역방향 청크 렌더링
-    ───────────────────────────────────────── */
+     ───────────────────────────────────────── */
     async function loadPrevChunk() {
         if (Factory3Io.state.isLoadingPrev || Factory3Io.state.loading || !Factory3Io.state.oldestLoadedDate) return;
         Factory3Io.state.isLoadingPrev = true;
@@ -174,10 +199,8 @@ window.Factory3Io = window.Factory3Io || {};
                 if (!Factory3Io.dataCache[ds]) Factory3Io.dataCache[ds] = {};
             });
 
-            // [수정] 과거 데이터 추가 후 전체 재계산을 먼저 진행합니다.
             API.recalcAllStocks();
 
-            // [수정] 계산이 정상 완료된 상태의 값을 원본 캐시 백업 스냅샷에 병합(Merge)합니다.
             if (!Factory3Io.originalDbCache) Factory3Io.originalDbCache = {};
             dates.forEach(ds => {
                 const cacheVal = Factory3Io.dataCache[ds] || {};
@@ -220,7 +243,7 @@ window.Factory3Io = window.Factory3Io || {};
 
     /* ─────────────────────────────────────────
        입고실적 편집 및 일괄 저장 처리
-    ───────────────────────────────────────── */
+     ───────────────────────────────────────── */
     async function handleSave() {
         const today = Utils.todayStr();
         const editDates = Utils.getDatesRange(Utils.addDays(today, -6), today);
@@ -253,7 +276,6 @@ window.Factory3Io = window.Factory3Io || {};
         const ok = await API.saveIncomingBatch(batchRows);
         if (!ok) return;
 
-        // 일괄 저장 성공 시 백업용 originalDbCache 역시 최신 DB 상태로 함께 갱신 처리합니다.
         if (!Factory3Io.originalDbCache) Factory3Io.originalDbCache = {};
         batchRows.forEach(row => {
             const ds = row.date;
@@ -269,14 +291,20 @@ window.Factory3Io = window.Factory3Io || {};
             Factory3Io.state.headerApi.toggleEditMode();
         }
         onEditModeExit();
+
+        // 2층(Contrast) 데이터도 새로고침 동기화 처리
+        const start = Factory3Io.state.oldestLoadedDate;
+        const end = today;
+        if (window.Factory3Contrast && window.Factory3Contrast.main && typeof window.Factory3Contrast.main.loadInitialData === 'function') {
+            await window.Factory3Contrast.main.loadInitialData(start, end);
+        }
+
         alert('최근 7일치 입고 실적 및 연산 재고가 실시간으로 일괄 저장되었습니다.');
     }
 
     /* ─────────────────────────────────────────
        마스터 전용: 재고 실시간 동기화/재계산 처리
-       (Dirty-check 방식 폐기 → "전일" 재고를 실행 순간의 DB 상태로
-        무조건 재계산하여 덮어쓰기 저장하는 방식으로 변경)
-    ───────────────────────────────────────── */
+     ───────────────────────────────────────── */
     async function handleSyncStocks() {
         if (Factory3Io.state.loading) return;
 
@@ -287,7 +315,6 @@ window.Factory3Io = window.Factory3Io || {};
             return;
         }
 
-        // 아이콘 360도 회전 애니메이션 시작
         const syncBtn = document.getElementById('gf3IoTitleSyncBtn');
         const iconSpan = syncBtn ? syncBtn.querySelector('.material-symbols-outlined') : null;
         if (iconSpan) {
@@ -296,23 +323,18 @@ window.Factory3Io = window.Factory3Io || {};
         }
 
         try {
-            // 1. 실행 "순간"의 DB 상태를 다시 조회 (로컬 캐시만 믿지 않고 새로 fetch)
-            //    - 기존 로직은 로컬 dataCache를 recalc한 값과, 로드 직후 그 값 그대로 찍어둔
-            //      originalDbCache를 비교했기 때문에 사실상 항상 "변동 없음"으로 판정되던 문제가 있었음.
             const start = Utils.addDays(targetDate, -21);
             const end = targetDate;
 
-            Factory3Io.baselineRow = null; // 기준점도 최신 DB로 다시 탐색
+            Factory3Io.baselineRow = null;
             await API.fetchBaseline(start);
             await Promise.all([
                 API.loadIoTableRange(start, end),
                 API.loadOutgoingRange(start, end)
             ]);
 
-            // 2. 최신 DB 데이터 기준으로 재고 재계산
             API.recalcAllStocks();
 
-            // 3. 전일자 재계산 결과 추출 (변동 여부와 무관하게 항상 사용)
             const d = Factory3Io.dataCache[targetDate] || {};
             const row = {
                 date: targetDate,
@@ -322,7 +344,6 @@ window.Factory3Io = window.Factory3Io || {};
                 stock_d: d.stock_d || 0
             };
 
-            // 4. 변동 유무를 따지지 않고 실행 시점 계산값으로 무조건 덮어쓰기 저장
             const ok = await API.saveIncomingBatch([row]);
 
             if (ok) {
@@ -335,6 +356,12 @@ window.Factory3Io = window.Factory3Io || {};
                 };
 
                 Render.rerenderAllRows(true);
+                
+                // 2층도 새로 갱신
+                if (window.Factory3Contrast && window.Factory3Contrast.main && typeof window.Factory3Contrast.main.loadInitialData === 'function') {
+                    await window.Factory3Contrast.main.loadInitialData(start, Utils.todayStr());
+                }
+
                 alert(`${Utils.fmtKo(targetDate)} 재고(A: ${row.stock_a.toLocaleString()}, D: ${row.stock_d.toLocaleString()})가 최신 DB 기준으로 재계산되어 저장되었습니다.`);
             } else {
                 alert('재고 데이터베이스 동기화에 실패했습니다.');
@@ -411,14 +438,23 @@ window.Factory3Io = window.Factory3Io || {};
 
     /* ─────────────────────────────────────────
        인터랙션: 스크롤 동기화 및 포커싱 자동 배치
-    ───────────────────────────────────────── */
+     ───────────────────────────────────────── */
     let _syncLock = false;
 
     function bindScrollSync() {
         Factory3Io.PANEL_IDS.forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
+
+            // 스크롤 잠금 상태 시 마우스 휠 동작 차단
+            el.addEventListener('wheel', (e) => {
+                if (!Factory3Io.state.isScrollUnlocked) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
             el.addEventListener('scroll', () => {
+                if (!Factory3Io.state.isScrollUnlocked) return; // 잠금 상태 시 동기화 및 로드 차단
                 if (_syncLock) return;
                 _syncLock = true;
                 const top = el.scrollTop;
@@ -432,6 +468,33 @@ window.Factory3Io = window.Factory3Io || {};
                     loadPrevChunk();
                 }
             });
+        });
+    }
+
+    Factory3Io.state.isScrollUnlocked = false; // 기본 락 상태
+
+    function bindScrollToggle() {
+        const toggle = document.getElementById('ioScrollToggle');
+        if (!toggle) return;
+
+        toggle.checked = !!Factory3Io.state.isScrollUnlocked;
+        updateScrollLockUI();
+
+        toggle.addEventListener('change', (e) => {
+            Factory3Io.state.isScrollUnlocked = e.target.checked;
+            updateScrollLockUI();
+        });
+    }
+
+    function updateScrollLockUI() {
+        Factory3Io.PANEL_IDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (Factory3Io.state.isScrollUnlocked) {
+                el.classList.remove('locked');
+            } else {
+                el.classList.add('locked');
+            }
         });
     }
 
@@ -451,7 +514,7 @@ window.Factory3Io = window.Factory3Io || {};
 
     /* ─────────────────────────────────────────
        인터랙션: 셀 하이라이트 및 가상 글래스 커서
-    ───────────────────────────────────────── */
+     ───────────────────────────────────────── */
     function hideCursors() {
         [1,2,3].forEach(i => { const c = document.getElementById(`f3ioCursor${i}`); if (c) c.classList.remove('active'); });
     }
@@ -476,13 +539,18 @@ window.Factory3Io = window.Factory3Io || {};
         hideCursors();
     }
 
-    function applyHighlight(panelIdx, ds, colDataCol) {
+    function applyHighlight(panelIdx, ds, colDataCol, syncToFloor2 = true) {
         if (Factory3Io.state.headerApi && Factory3Io.state.headerApi.isEditMode()) return;
         clearHighlights();
         Factory3Io.state.selectedDate  = ds;
         Factory3Io.state.selectedPanel = panelIdx;
         Factory3Io.state.selectedCol   = colDataCol;
         Render.updateDateText(ds);
+
+        // 공통 헤더 날짜 업데이트 (이벤트 유발 방지 false)
+        if (Factory3Io.state.headerApi && typeof Factory3Io.state.headerApi.setCurrentDate === 'function') {
+            Factory3Io.state.headerApi.setCurrentDate(ds, false);
+        }
 
         Factory3Io.PANEL_IDS.forEach((id, i) => {
             const body = document.getElementById(`f3ioBody${i+1}`);
@@ -516,11 +584,35 @@ window.Factory3Io = window.Factory3Io || {};
                 }
             }
         }
+
+        // 2층(Contrast)의 동일한 행을 하일라이팅하도록 동기화 호출
+        if (syncToFloor2 && window.Factory3Contrast && window.Factory3Contrast.render && typeof window.Factory3Contrast.render.applyHighlight === 'function') {
+            window.Factory3Contrast.render.applyHighlight(null, ds, null, false);
+        }
+    }
+
+    function applyHighlightRowOnly(ds) {
+        if (Factory3Io.state.headerApi && Factory3Io.state.headerApi.isEditMode()) return;
+        clearHighlights();
+        Factory3Io.state.selectedDate = ds;
+        Render.updateDateText(ds);
+
+        // 공통 헤더 날짜 업데이트 (이벤트 유발 방지 false)
+        if (Factory3Io.state.headerApi && typeof Factory3Io.state.headerApi.setCurrentDate === 'function') {
+            Factory3Io.state.headerApi.setCurrentDate(ds, false);
+        }
+
+        Factory3Io.PANEL_IDS.forEach((id, i) => {
+            const body = document.getElementById(`f3ioBody${i+1}`);
+            if (!body) return;
+            const row = body.querySelector(`tr[data-date="${ds}"]`);
+            if (row) row.classList.add('f3io-selected-row');
+        });
     }
 
     /* ─────────────────────────────────────────
        인터랙션: 키보드 제어 및 클릭 리스너 연결
-    ───────────────────────────────────────── */
+     ───────────────────────────────────────── */
     function bindKeyboardNav() {
         document.addEventListener('keydown', e => {
             if (Factory3Io.state.headerApi && Factory3Io.state.headerApi.isEditMode()) return;
@@ -538,7 +630,7 @@ window.Factory3Io = window.Factory3Io || {};
             if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                 const target = e.key === 'ArrowUp' ? curRow.previousElementSibling : curRow.nextElementSibling;
                 if (target && target.getAttribute('data-date')) {
-                    applyHighlight(panelIdx, target.getAttribute('data-date'), String(colNum));
+                    applyHighlight(panelIdx, target.getAttribute('data-date'), String(colNum), true);
                     scrollToActiveCell(panelIdx);
                 }
             } else {
@@ -550,7 +642,7 @@ window.Factory3Io = window.Factory3Io || {};
                     colNum++;
                     if (colNum > colCount[panelIdx]) { if (panelIdx < 3) { panelIdx++; colNum = 1; } else colNum = colCount[panelIdx]; }
                 }
-                applyHighlight(panelIdx, Factory3Io.state.selectedDate, String(colNum));
+                applyHighlight(panelIdx, Factory3Io.state.selectedDate, String(colNum), true);
                 scrollToActiveCell(panelIdx);
             }
         });
@@ -574,13 +666,13 @@ window.Factory3Io = window.Factory3Io || {};
             body.addEventListener('click', e => {
                 const td = e.target.closest('td');
                 if (!td) return;
-                // 1회 클릭 시 기존 하이라이팅 및 인풋 컴포넌트(입고 DB 입력) 제어 로직 보존
+                
                 if (td.classList.contains('f3io-date-td')) {
                     const tr = td.closest('tr[data-date]');
-                    if (tr) applyHighlight(i+1, tr.getAttribute('data-date'), null);
+                    if (tr) applyHighlight(i+1, tr.getAttribute('data-date'), null, true);
                 } else {
                     const tr = td.closest('tr[data-date]');
-                    if (tr) applyHighlight(i+1, tr.getAttribute('data-date'), td.getAttribute('data-col'));
+                    if (tr) applyHighlight(i+1, tr.getAttribute('data-date'), td.getAttribute('data-col'), true);
                 }
             });
         });
@@ -607,16 +699,14 @@ window.Factory3Io = window.Factory3Io || {};
                 let colId = 'ALL';
                 let cellLabel = '날짜';
                 
-                // 날짜 컬럼 분기 파악
                 if (td.classList.contains('f3io-date-td')) {
                     colId = 'ALL';
                     cellLabel = '날짜';
                 } else {
                     const colAttr = td.getAttribute('data-col');
                     if (!colAttr) return; 
-                    colId = `p${i+1}_c${colAttr}`; // 예시: p1_c1 (패널1의 1번째 열 = 입고 A)
+                    colId = `p${i+1}_c${colAttr}`;
                     
-                    // 프롬프트 가이드용 텍스트 매핑
                     if (i === 0) {
                         const labels = { '1': '입고 A', '2': '입고 D', '3': '출고 A', '4': '출고 D', '5': '재고 A', '6': '재고 D' };
                         cellLabel = labels[colAttr] || `입출고 열 ${colAttr}`;
@@ -636,20 +726,16 @@ window.Factory3Io = window.Factory3Io || {};
                 if (newMemo !== null && newMemo !== currentMemo) {
                     const finalMemo = newMemo.trim() === '' ? null : newMemo.trim();
                     
-                    // 1. 캐시 선 반영
                     if (finalMemo) {
                         d.memos[colId] = finalMemo;
                     } else {
                         delete d.memos[colId];
                     }
                     
-                    // 2. 화면 즉시 리랜더링 적용 (빨간 삼각형 실시간 반영)
                     Render.rerenderAllRows(true);
                     
-                    // 3. 백그라운드 DB 갱신
                     const ok = await API.saveMemo(ds, colId, finalMemo);
                     if (!ok) {
-                        // 저장 실패 시 캐시 및 화면 원상 복구
                         if (currentMemo) {
                             d.memos[colId] = currentMemo;
                         } else {

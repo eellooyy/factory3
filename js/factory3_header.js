@@ -85,12 +85,28 @@ window.Factory3Header = (function() {
             return true;
         }
 
+        function updateNextBtnState() {
+            if (elements.nextBtn) {
+                const today = utils.getTodayStr();
+                if (state.currentDate >= today) {
+                    elements.nextBtn.disabled = true;
+                    elements.nextBtn.style.opacity = '0.3';
+                    elements.nextBtn.style.pointerEvents = 'none';
+                } else {
+                    elements.nextBtn.disabled = false;
+                    elements.nextBtn.style.opacity = '1';
+                    elements.nextBtn.style.pointerEvents = 'auto';
+                }
+            }
+        }
+
         function setCurrentDate(dateStr, triggerChange) {
             state.currentDate = dateStr;
             elements.dateText.innerText = utils.formatKoDate(dateStr);
             if (state.fp) {
                 state.fp.setDate(dateStr, false);
             }
+            updateNextBtnState();
             if (triggerChange !== false && onDateChange) {
                 onDateChange(dateStr);
             }
@@ -178,6 +194,7 @@ window.Factory3Header = (function() {
             positionElement: elements.dateText,
             position: 'auto center',
             clickOpens: false,
+            maxDate: utils.getTodayStr(),
             onReady: function(selectedDates, dateStr, instance) {
                 instance.calendarContainer.style.marginTop = '10px';
             },
@@ -193,6 +210,8 @@ window.Factory3Header = (function() {
                 setTimeout(() => { justClosed = false; }, 200);
             }
         });
+
+        updateNextBtnState();
 
         elements.dateText.addEventListener('click', (e) => {
             e.stopPropagation();
