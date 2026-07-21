@@ -95,7 +95,7 @@ window.Factory3Io = window.Factory3Io || {};
                 await window.Factory3Contrast.main.initModule();
             }
 
-            // 기본값으로 오늘 날짜 기준 레이아웃 구동 시작 (하늘색 강조는 render 로직에서 그대로 어제 날짜 기준 유지)
+            // 기본값으로 오늘 날짜 기준 레이아웃 구동 시작
             await loadDataChunk(Utils.todayStr());
         },
 
@@ -135,10 +135,10 @@ window.Factory3Io = window.Factory3Io || {};
                 }
             });
 
-            // [수정] 최초 계산을 먼저 실행하여 프로그램의 기본 연산 상태를 정립합니다.
+            // 최초 계산 실행
             API.recalcAllStocks();
 
-            // [수정] 연산이 완료된 시점의 무결한 상태를 원본 스냅샷(Clean State)으로 등록합니다.
+            // 원본 스냅샷 등록
             Factory3Io.originalDbCache = {};
             dates.forEach(ds => {
                 const cacheVal = Factory3Io.dataCache[ds] || {};
@@ -292,7 +292,7 @@ window.Factory3Io = window.Factory3Io || {};
         }
         onEditModeExit();
 
-        // 2층(Contrast) 데이터도 새로고침 동기화 처리
+        // 2층(Contrast) 데이터 동기화
         const start = Factory3Io.state.oldestLoadedDate;
         const end = today;
         if (window.Factory3Contrast && window.Factory3Contrast.main && typeof window.Factory3Contrast.main.loadInitialData === 'function') {
@@ -309,7 +309,7 @@ window.Factory3Io = window.Factory3Io || {};
         if (Factory3Io.state.loading) return;
 
         const todayStr = Utils.todayStr();
-        const targetDate = Utils.addDays(todayStr, -1); // 오늘 기준 전일(어제)
+        const targetDate = Utils.addDays(todayStr, -1);
 
         if (!confirm(`${Utils.fmtKo(targetDate)} 재고를 지금 시점의 DB 데이터를 기준으로 다시 계산하여 저장하시겠습니까?`)) {
             return;
@@ -357,7 +357,6 @@ window.Factory3Io = window.Factory3Io || {};
 
                 Render.rerenderAllRows(true);
                 
-                // 2층도 새로 갱신
                 if (window.Factory3Contrast && window.Factory3Contrast.main && typeof window.Factory3Contrast.main.loadInitialData === 'function') {
                     await window.Factory3Contrast.main.loadInitialData(start, Utils.todayStr());
                 }
@@ -447,7 +446,7 @@ window.Factory3Io = window.Factory3Io || {};
             if (!el) return;
 
             el.addEventListener('scroll', () => {
-                if (!Factory3Io.state.isScrollUnlocked) return; // 잠금 상태 시 동기화 및 로드 차단
+                if (!Factory3Io.state.isScrollUnlocked) return;
                 if (_syncLock) return;
                 _syncLock = true;
                 const top = el.scrollTop;
@@ -464,7 +463,7 @@ window.Factory3Io = window.Factory3Io || {};
         });
     }
 
-    Factory3Io.state.isScrollUnlocked = false; // 기본 락 상태
+    Factory3Io.state.isScrollUnlocked = false;
 
     function bindScrollToggle() {
         const toggle = document.getElementById('ioScrollToggle');
@@ -497,7 +496,6 @@ window.Factory3Io = window.Factory3Io || {};
             const row = document.querySelector(`#f3ioBody1 tr[data-date="${target}"]`);
             if (!row) return;
 
-            // 선택한 날짜가 스크롤 영역의 제일 아래줄에 오도록 위치 계산
             const rowBottom = row.offsetTop + row.offsetHeight;
             Factory3Io.PANEL_IDS.forEach(id => {
                 const p = document.getElementById(id);
@@ -541,9 +539,13 @@ window.Factory3Io = window.Factory3Io || {};
         Factory3Io.state.selectedCol   = colDataCol;
         Render.updateDateText(ds);
 
-        // 공통 헤더 날짜 업데이트 (이벤트 유발 방지 false)
+        // 공통 헤더 날짜 업데이트 (모바일 Flatpickr 이슈 대비 try-catch 안전 처리)
         if (Factory3Io.state.headerApi && typeof Factory3Io.state.headerApi.setCurrentDate === 'function') {
-            Factory3Io.state.headerApi.setCurrentDate(ds, false);
+            try {
+                Factory3Io.state.headerApi.setCurrentDate(ds, false);
+            } catch (e) {
+                console.warn('[Factory3Io] Header setCurrentDate warning:', e);
+            }
         }
 
         Factory3Io.PANEL_IDS.forEach((id, i) => {
@@ -579,7 +581,7 @@ window.Factory3Io = window.Factory3Io || {};
             }
         }
 
-        // 2층(Contrast)의 동일한 행을 하일라이팅하도록 동기화 호출
+        // 2층(Contrast) 하일라이팅 동기화
         if (syncToFloor2 && window.Factory3Contrast && window.Factory3Contrast.render && typeof window.Factory3Contrast.render.applyHighlight === 'function') {
             window.Factory3Contrast.render.applyHighlight(null, ds, null, false);
         }
@@ -591,9 +593,13 @@ window.Factory3Io = window.Factory3Io || {};
         Factory3Io.state.selectedDate = ds;
         Render.updateDateText(ds);
 
-        // 공통 헤더 날짜 업데이트 (이벤트 유발 방지 false)
+        // 공통 헤더 날짜 업데이트 (모바일 Flatpickr 이슈 대비 try-catch 안전 처리)
         if (Factory3Io.state.headerApi && typeof Factory3Io.state.headerApi.setCurrentDate === 'function') {
-            Factory3Io.state.headerApi.setCurrentDate(ds, false);
+            try {
+                Factory3Io.state.headerApi.setCurrentDate(ds, false);
+            } catch (e) {
+                console.warn('[Factory3Io] Header setCurrentDate warning:', e);
+            }
         }
 
         Factory3Io.PANEL_IDS.forEach((id, i) => {
@@ -672,7 +678,7 @@ window.Factory3Io = window.Factory3Io || {};
         });
     }
 
-    /* ─ 모든 데이터 셀 더블 클릭 시 엑셀형 메모 입력 처리 ─ */
+    /* 더블 클릭 시 메모 입력 */
     function bindBodyDoubleClicks() {
         Factory3Io.PANEL_IDS.forEach((id, i) => {
             const body = document.getElementById(`f3ioBody${i+1}`);
@@ -742,7 +748,6 @@ window.Factory3Io = window.Factory3Io || {};
         });
     }
 
-    // 모듈 자동 가동 구조화 선언 연동
     document.addEventListener('DOMContentLoaded', () => {
         if (Factory3Io.Main && typeof Factory3Io.Main.init === 'function') {
             Factory3Io.Main.init();

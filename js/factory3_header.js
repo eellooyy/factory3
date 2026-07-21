@@ -103,9 +103,12 @@ window.Factory3Header = (function() {
         function setCurrentDate(dateStr, triggerChange) {
             state.currentDate = dateStr;
             elements.dateText.innerText = utils.formatKoDate(dateStr);
-            if (state.fp) {
+            
+            // ★ 모바일 방어 코드: fp 객체와 setDate 메서드가 유효한 경우에만 호출
+            if (state.fp && typeof state.fp.setDate === 'function') {
                 state.fp.setDate(dateStr, false);
             }
+            
             updateNextBtnState();
             if (triggerChange !== false && onDateChange) {
                 onDateChange(dateStr);
@@ -190,6 +193,7 @@ window.Factory3Header = (function() {
         state.fp = flatpickr(`#${elementId(prefix, 'Flatpickr')}`, {
             locale: 'ko',
             dateFormat: 'Y-m-d',
+            disableMobile: "true", // ★ 모바일에서도 PC와 동일하게 JS Flatpickr 객체를 고정
             defaultDate: state.currentDate,
             positionElement: elements.dateText,
             position: 'auto center',
@@ -200,7 +204,9 @@ window.Factory3Header = (function() {
             },
             onChange: (dates, str) => {
                 if (!confirmLeaveEditMode()) {
-                    state.fp.setDate(state.currentDate, false);
+                    if (state.fp && typeof state.fp.setDate === 'function') {
+                        state.fp.setDate(state.currentDate, false);
+                    }
                     return;
                 }
                 setCurrentDate(str);
@@ -240,7 +246,7 @@ window.Factory3Header = (function() {
         elements.editBtn.addEventListener('click', toggleEditMode);
         elements.excelBtn.addEventListener('click', () => onExportExcel());
 
-        // 저장 버튼 클릭 시 일지 데이터 저장만 실행 (공지사항은 팝업창 내 별도 저장 버튼을 통해 독립 저장)
+        // 저장 버튼 클릭 시 일지 데이터 저장만 실행
         elements.saveBtn.addEventListener('click', () => {
             if (!state.isEditMode) return;
             onSave();
