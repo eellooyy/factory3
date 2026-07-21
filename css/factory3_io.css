@@ -576,6 +576,7 @@ td.f3io-sum-col.f3io-sum-mismatch {
     grid-template-columns: 1fr auto 1fr;
     align-items: stretch;
     padding-bottom: 6px;
+    margin-bottom: 14px;
 }
 
 .panel-header-grid .header-left,
