@@ -95,8 +95,8 @@ window.Factory3Io = window.Factory3Io || {};
                 await window.Factory3Contrast.main.initModule();
             }
 
-            // 기본값으로 오늘(또는 어제) 날짜 기준 레이아웃 구동 시작
-            await loadDataChunk(Utils.yesterdayStr());
+            // 기본값으로 오늘 날짜 기준 레이아웃 구동 시작 (하늘색 강조는 render 로직에서 그대로 어제 날짜 기준 유지)
+            await loadDataChunk(Utils.todayStr());
         },
 
         applyHighlightRowOnly: applyHighlightRowOnly
