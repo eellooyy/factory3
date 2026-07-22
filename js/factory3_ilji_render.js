@@ -5,6 +5,37 @@
     const App = window.Factory3Ilji;
     if (!App) return;
 
+    // 셀 및 input 요소의 화면/PDF 수직·수평 중앙 정렬 스타일 주입
+    (function injectCenterStyles() {
+        if (document.getElementById('f3i-center-align-style')) return;
+        const style = document.createElement('style');
+        style.id = 'f3i-center-align-style';
+        style.textContent = `
+            .f3i-wrapper td, .f3i-wrapper th,
+            .f3i-td, .f3i-th {
+                vertical-align: middle !important;
+                text-align: center !important;
+            }
+            .f3i-input {
+                text-align: center !important;
+                vertical-align: middle !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                height: 100% !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                margin: 0 !important;
+                padding: 0 2px !important;
+                line-height: normal !important;
+            }
+            .f3i-th.special-label {
+                text-align: right !important;
+            }
+        `;
+        document.head.appendChild(style);
+    })();
+
     // 집계 레벨 (0, 1, 2) 관리
     App.midLevel = 0;
 
@@ -40,13 +71,13 @@
 
         allRows.forEach(row => {
             if (row === targetRows[0]) {
-                row.insertAdjacentHTML('beforeend', '<th class="f3i-th special-cell special-label">사용량 총계:</th><td class="f3i-td editable special-cell"><input type="text" class="f3i-input" id="statTotalUsage" readonly></td>');
+                row.insertAdjacentHTML('beforeend', '<th class="f3i-th special-cell special-label" style="vertical-align:middle;">사용량 총계:</th><td class="f3i-td editable special-cell" style="vertical-align:middle;"><input type="text" class="f3i-input" id="statTotalUsage" readonly style="text-align:center; vertical-align:middle;"></td>');
             } else if (row === targetRows[1]) {
-                row.insertAdjacentHTML('beforeend', '<th class="f3i-th special-cell special-label">실사용량:</th><td class="f3i-td special-cell"><input type="text" class="f3i-input" id="statRealUsage" readonly></td>');
+                row.insertAdjacentHTML('beforeend', '<th class="f3i-th special-cell special-label" style="vertical-align:middle;">실사용량:</th><td class="f3i-td special-cell" style="vertical-align:middle;"><input type="text" class="f3i-input" id="statRealUsage" readonly style="text-align:center; vertical-align:middle;"></td>');
             } else if (row === targetRows[2]) {
-                row.insertAdjacentHTML('beforeend', '<th class="f3i-th special-cell special-label">증감:</th><td class="f3i-td special-cell"><input type="text" class="f3i-input" id="statDiff" readonly></td>');
+                row.insertAdjacentHTML('beforeend', '<th class="f3i-th special-cell special-label" style="vertical-align:middle;">증감:</th><td class="f3i-td special-cell" style="vertical-align:middle;"><input type="text" class="f3i-input" id="statDiff" readonly style="text-align:center; vertical-align:middle;"></td>');
             } else {
-                row.insertAdjacentHTML('beforeend', '<td class="f3i-td special-cell" colspan="2"></td>');
+                row.insertAdjacentHTML('beforeend', '<td class="f3i-td special-cell" colspan="2" style="vertical-align:middle;"></td>');
             }
         });
 
@@ -366,7 +397,7 @@
         });
     };
 
-    // PDF 출력 내보내기 (경량화 압축 적용)
+    // PDF 출력 내보내기 (경량화 압축 및 수직/수평 중앙 정렬 렌더링 보장)
     App.exportToPDF = function() {
         if (!window.html2canvas || !window.jspdf) {
             alert("PDF 모듈을 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.");
@@ -402,26 +433,42 @@
             const pageWidthMm = rect.width * pxToMm;
             const pageHeightMm = rect.height * pxToMm;
 
-            // scale을 1.5로 최적화하여 픽셀 용량 절감
             html2canvas(wrapper, {
                 scale: 1.5,
                 useCORS: true,
-                backgroundColor: '#f5f5f7'
+                backgroundColor: '#f5f5f7',
+                onclone: (clonedDoc) => {
+                    // html2canvas 캡처 시 input 및 cell의 수직/수평 중앙 정렬을 강제로 고정
+                    const clonedInputs = clonedDoc.querySelectorAll('.f3i-wrapper input, .f3i-input');
+                    clonedInputs.forEach(inp => {
+                        inp.style.display = 'inline-block';
+                        inp.style.verticalAlign = 'middle';
+                        inp.style.textAlign = 'center';
+                        inp.style.lineHeight = 'normal';
+                        inp.style.marginTop = '0px';
+                        inp.style.marginBottom = '0px';
+                        inp.style.paddingTop = '0px';
+                        inp.style.paddingBottom = '0px';
+                    });
+                    const clonedCells = clonedDoc.querySelectorAll('.f3i-wrapper td, .f3i-wrapper th');
+                    clonedCells.forEach(cell => {
+                        cell.style.verticalAlign = 'middle';
+                        cell.style.textAlign = 'center';
+                    });
+                }
             }).then(canvas => {
                 restore();
 
                 const { jsPDF } = window.jspdf;
-                // PNG 대신 JPEG 사용 및 0.75 퀄리티 압축 지정
                 const imgData = canvas.toDataURL('image/jpeg', 0.75);
 
                 const pdf = new jsPDF({
                     orientation: pageWidthMm >= pageHeightMm ? 'landscape' : 'portrait',
                     unit: 'mm',
                     format: [pageWidthMm, pageHeightMm],
-                    compress: true // PDF 내부 압축 활성화
+                    compress: true
                 });
 
-                // JPEG 포맷 및 FAST 압축 옵션 적용
                 pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, pageHeightMm, undefined, 'FAST');
                 pdf.save(`3공장_급지일지_${currentDate}.pdf`);
             }).catch(err => {
