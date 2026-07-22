@@ -181,6 +181,7 @@
 
             if (midLevel >= 1) {
                 if (midUsageInput1 && midUsageInput1.dataset.fixedUsage !== undefined && midUsageInput1.dataset.fixedUsage !== "") {
+                    // 고정된 계산값이 있으면 우선 적용 (스왑 시 재계산 방지)
                     const fixedVal = Number(midUsageInput1.dataset.fixedUsage);
                     midUsageInput1.value = fixedVal > 0 ? fixedVal.toLocaleString() : "0";
                 } else if (midBalVal1 > 0 && paperBeforeMid1 > 0) {
@@ -206,6 +207,7 @@
 
             if (midLevel >= 2) {
                 if (midUsageInput2 && midUsageInput2.dataset.fixedUsage !== undefined && midUsageInput2.dataset.fixedUsage !== "") {
+                    // 고정된 계산값이 있으면 우선 적용 (스왑 시 재계산 방지)
                     const fixedVal = Number(midUsageInput2.dataset.fixedUsage);
                     midUsageInput2.value = fixedVal > 0 ? fixedVal.toLocaleString() : "0";
                 } else if (midBalVal2 > 0 && paperBeforeMid2 > 0) {
@@ -364,7 +366,7 @@
         });
     };
 
-    // PDF 출력 내보내기 (렌더링 시 input 요소를 수직 중앙 정렬 div로 치환하여 쏠림 방지)
+    // PDF 출력 내보내기 (경량화 압축 적용)
     App.exportToPDF = function() {
         if (!window.html2canvas || !window.jspdf) {
             alert("PDF 모듈을 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.");
@@ -379,38 +381,6 @@
         const wrapper = App.headerApi.elements.wrapper;
         const currentDate = App.headerApi.getCurrentDate();
 
-        // PDF 생성용 임시 치환 요소 목록
-        const tempDivs = [];
-        const inputs = wrapper.querySelectorAll('input.f3i-input');
-
-        inputs.forEach(input => {
-            const val = input.value;
-            const parent = input.parentElement;
-            if (!parent) return;
-
-            const div = document.createElement('div');
-            div.className = input.className;
-            div.textContent = val;
-            
-            // 수직 및 가로 중앙 정렬 스타일을 명시적으로 적용
-            div.style.cssText = `
-                width: 100%;
-                height: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                text-align: center;
-                font-size: 14px;
-                color: #1d1d1f;
-                box-sizing: border-box;
-                font-weight: ${input.classList.contains('fw-bold') ? 'bold' : 'normal'};
-            `;
-
-            input.style.display = 'none';
-            parent.appendChild(div);
-            tempDivs.push({ input, div });
-        });
-
         // PDF에는 불필요한 조작 버튼들을 캡처 직전에만 숨김
         const todayBtn = App.headerApi.elements.todayBtn;
         const editBtn = App.headerApi.elements.editBtn;
@@ -420,23 +390,19 @@
         hideTargets.forEach(el => { el.style.display = 'none'; });
 
         const restore = () => {
-            tempDivs.forEach(item => {
-                item.input.style.display = '';
-                if (item.div.parentElement) {
-                    item.div.parentElement.removeChild(item.div);
-                }
-            });
             hideTargets.forEach((el, i) => { el.style.display = prevDisplay[i]; });
             pdfBtn.innerHTML = btnInner;
             pdfBtn.disabled = false;
         };
 
+        // 버튼 숨김에 따른 레이아웃 재계산을 기다린 뒤 캡처
         setTimeout(() => {
             const rect = wrapper.getBoundingClientRect();
             const pxToMm = 25.4 / 96;
             const pageWidthMm = rect.width * pxToMm;
             const pageHeightMm = rect.height * pxToMm;
 
+            // scale을 1.5로 최적화하여 픽셀 용량 절감
             html2canvas(wrapper, {
                 scale: 1.5,
                 useCORS: true,
@@ -445,15 +411,17 @@
                 restore();
 
                 const { jsPDF } = window.jspdf;
+                // PNG 대신 JPEG 사용 및 0.75 퀄리티 압축 지정
                 const imgData = canvas.toDataURL('image/jpeg', 0.75);
 
                 const pdf = new jsPDF({
                     orientation: pageWidthMm >= pageHeightMm ? 'landscape' : 'portrait',
                     unit: 'mm',
                     format: [pageWidthMm, pageHeightMm],
-                    compress: true
+                    compress: true // PDF 내부 압축 활성화
                 });
 
+                // JPEG 포맷 및 FAST 압축 옵션 적용
                 pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, pageHeightMm, undefined, 'FAST');
                 pdf.save(`3공장_급지일지_${currentDate}.pdf`);
             }).catch(err => {
@@ -516,6 +484,7 @@
                         infoBar.style.display = 'block';
                     }
                     
+                    // 1차/2차 사용 후 잔량 (data-type^="mid_bal") 및 사용 후 잔량 (data-row="10") 편집가능 셀을 후보로 지정
                     document.querySelectorAll('.f3i-td.editable').forEach(td => {
                         const inp = td.querySelector('input.target-calc[data-row="1"], input.target-calc[data-type^="mid_bal"], input.target-calc[data-row="10"]');
                         if (inp) {
@@ -526,6 +495,7 @@
             });
         });
         
+        // 이벤트 위임을 통해 셀 클릭 제어
         const wrapper = document.querySelector('.f3i-wrapper');
         if (wrapper) {
             wrapper.addEventListener('click', function(e) {
@@ -541,12 +511,14 @@
                 if (!input) return;
                 
                 if (!App.swapState.firstSelectedCell) {
+                    // 1단계 선택
                     App.swapState.firstSelectedCell = td;
                     td.classList.add('swap-selected');
                     if (infoBar) {
                         infoBar.textContent = '변경할 잔량 대상을 선택해 주세요';
                     }
                 } else {
+                    // 2단계 선택 (동일 셀 선택 시 취소)
                     if (App.swapState.firstSelectedCell === td) {
                         td.classList.remove('swap-selected');
                         App.swapState.firstSelectedCell = null;
@@ -554,6 +526,7 @@
                             infoBar.textContent = '변경하려는 잔량을 선택해 주세요';
                         }
                     } else {
+                        // 잔량 값 맞교환
                         const input1 = App.swapState.firstSelectedCell.querySelector('input');
                         const input2 = input;
                         
@@ -561,13 +534,17 @@
                         input1.value = input2.value;
                         input2.value = tempVal;
                         
+                        // 자동 연산 트리거
                         App.calculateAutoFields();
+                        
+                        // 스왑 모드 비활성화
                         App.disableSwapMode();
                     }
                 }
             });
         }
         
+        // 수정 모드가 꺼지거나 날짜가 변경될 때 스왑 모드 자동 초기화
         const editBtn = document.getElementById('f3iEditBtn');
         if (editBtn) {
             editBtn.addEventListener('click', () => {
