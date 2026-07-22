@@ -5,10 +5,31 @@
     const App = window.Factory3Ilji;
     if (!App) return;
 
+    // 1차 집계 행 표시 여부 관리
+    App.isMidRowsVisible = function() {
+        const uRow = document.getElementById('f3iMidUsageRow');
+        return uRow && uRow.classList.contains('show');
+    };
+
+    App.setMidRowsVisibility = function(visible) {
+        const uRow = document.getElementById('f3iMidUsageRow');
+        const bRow = document.getElementById('f3iMidBalRow');
+        if (uRow && bRow) {
+            if (visible) {
+                uRow.classList.add('show');
+                bRow.classList.add('show');
+            } else {
+                uRow.classList.remove('show');
+                bRow.classList.remove('show');
+            }
+        }
+    };
+
     // 자동 수식 계산
     App.calculateAutoFields = function() {
         let usageD = 0; let usageA = 0; let endBalD = 0; let endBalA = 0; 
         let sumTodayRollD = 0; let sumTodayRollA = 0;
+        const isMidVisible = App.isMidRowsVisible();
 
         ['B','C','D','E','F','G'].forEach(col => {
             const factor = (col === 'B') ? App.FACTOR_788 : App.FACTOR_1576;
@@ -31,6 +52,31 @@
             const beforeSum = startBal + wanKgSum;
             const beforeInput = document.querySelector(`.f3i-input[data-col="${col}"][data-row="8"]`);
             if (beforeInput) beforeInput.value = beforeSum > 0 ? beforeSum.toLocaleString() : "";
+
+            // 1차 집계 계산 처리 및 1차 사용량 확정 고정 (Lock)
+            if (isMidVisible) {
+                const midBalInput = document.querySelector(`.f3i-input[data-col="${col}"][data-type="mid_bal"]`);
+                const midUsageInput = document.querySelector(`.f3i-input[data-col="${col}"][data-type="mid_usage"]`);
+                const midBalVal = App.utils.parseNum(midBalInput?.value);
+
+                if (midBalVal > 0 && beforeSum > 0) {
+                    const computedMidUsage = beforeSum - midBalVal;
+                    if (midUsageInput) {
+                        midUsageInput.dataset.fixedUsage = computedMidUsage;
+                        midUsageInput.value = computedMidUsage > 0 ? computedMidUsage.toLocaleString() : "0";
+                    }
+                } else if (midUsageInput && midUsageInput.dataset.fixedUsage) {
+                    const fixedVal = Number(midUsageInput.dataset.fixedUsage);
+                    midUsageInput.value = fixedVal > 0 ? fixedVal.toLocaleString() : "0";
+                } else if (midUsageInput) {
+                    midUsageInput.value = "";
+                }
+            } else {
+                const midUsageInput = document.querySelector(`.f3i-input[data-col="${col}"][data-type="mid_usage"]`);
+                const midBalInput = document.querySelector(`.f3i-input[data-col="${col}"][data-type="mid_bal"]`);
+                if (midUsageInput) { midUsageInput.value = ""; delete midUsageInput.dataset.fixedUsage; }
+                if (midBalInput) { midBalInput.value = ""; }
+            }
 
             const endBal = App.utils.parseNum(document.querySelector(`.target-calc[data-col="${col}"][data-row="10"]`)?.value);
             if (col === 'B') endBalD = endBal;
@@ -202,7 +248,6 @@
                 const wb = XLSX.utils.book_new();
                 const ws = XLSX.utils.aoa_to_sheet(ws_data);
 
-                // 시트 병합 규칙 및 셀 스타일 코드 (기존과 동일 처리)
                 ws['!merges'] = [
                     { s: {r: 0, c: 7}, e: {r: 0, c: 11} }, { s: {r: 2, c: 7}, e: {r: 2, c: 8} },
                     { s: {r: 3, c: 7}, e: {r: 3, c: 8} }, { s: {r: 4, c: 0}, e: {r: 9, c: 0} },
@@ -441,9 +486,9 @@
                     infoBar.style.display = 'block';
                 }
                 
-                // data-row="1" 인 (사용 전 잔량) 편집가능 셀들만 후보로 지정
+                // 1차 사용 후 잔량 (data-type="mid_bal") 및 사용 후 잔량 (data-row="10") 편집가능 셀을 후보로 지정
                 document.querySelectorAll('.f3i-td.editable').forEach(td => {
-                    const inp = td.querySelector('input.target-calc[data-row="1"]');
+                    const inp = td.querySelector('input.target-calc[data-type="mid_bal"], input.target-calc[data-row="10"]');
                     if (inp) {
                         td.classList.add('swap-candidate');
                     }
@@ -482,7 +527,7 @@
                             infoBar.textContent = '변경하려는 잔량을 선택해 주세요';
                         }
                     } else {
-                        // 스왑 진행
+                        // 잔량 값 맞교환 (Swap 진행 시 확정된 1차 사용량 data-fixed-usage 고정 보장)
                         const input1 = App.swapState.firstSelectedCell.querySelector('input');
                         const input2 = input;
                         
