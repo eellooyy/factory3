@@ -142,8 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (backBtn) backBtn.style.display = "none";
             this.activeDetailIdx = null;
 
-            // 마스터 권한 및 모드 확인
-            const wrapper = document.querySelector('.f3i-wrapper');
+            // 마스터 권한 및 모드 확인 (.f3i-wrapper 또는 .gf3-wrapper 모두 지원)
+            const wrapper = document.querySelector('.f3i-wrapper') || document.querySelector('.gf3-wrapper[data-page-module]');
             const isMasterMode = wrapper && wrapper.classList.contains('master-mode-active');
 
             let html = '<div class="f3i-nlist-container" style="display: flex; flex-direction: column; height: 100%; justify-content: space-between;">';
@@ -283,8 +283,9 @@ document.addEventListener('DOMContentLoaded', () => {
             title.innerText = "공지사항 상세 내용";
             if (backBtn) backBtn.style.display = "flex";
 
-            // 마스터 비밀번호로 들어온 경우 contenteditable 속성 부여 여부 검사
-            const isMasterMode = document.querySelector('.f3i-wrapper').classList.contains('master-mode-active');
+            // 마스터 비밀번호로 들어온 경우 contenteditable 속성 부여 여부 검사 (.f3i-wrapper 또는 .gf3-wrapper 모두 지원)
+            const masterWrapper = document.querySelector('.f3i-wrapper') || document.querySelector('.gf3-wrapper[data-page-module]');
+            const isMasterMode = masterWrapper ? masterWrapper.classList.contains('master-mode-active') : false;
             
             // 마스터 모드일 때에만 하단 이미지 삽입 및 개별 공지 저장 액션바를 표시함
             let editActionsHtml = '';

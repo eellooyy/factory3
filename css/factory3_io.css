@@ -826,3 +826,166 @@ td.f3io-sum-col.f3io-sum-mismatch {
     .f3ct-panel { width: 100%; min-width: 0; }
     .f3ct-scroll-area { height: 360px; }
 }
+
+/* ================================================
+   PDF 저장 버튼 (io 페이지)
+   ================================================ */
+.f3i-pdf-btn { background: #b8291f; color: #fff; }
+.f3i-pdf-btn:not(:disabled):hover { background: #8f1f17; }
+.f3i-pdf-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ================================================
+   공지사항 롤링 Ticker 바 (io 페이지용)
+   ================================================ */
+.f3i-notice-ticker {
+    flex: 1;
+    margin: 0 16px;
+    height: 32px;
+    overflow: hidden;
+    position: relative;
+    background: #f5f5f7;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border: 1px solid #e5e5ea;
+    transition: background-color 0.2s;
+}
+.f3i-notice-ticker:hover { background: #e8f4fd; }
+.f3i-ticker-wrapper {
+    width: 100%;
+    position: relative;
+    height: 100%;
+}
+.f3i-ticker-item {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #007AFF;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+.f3i-ticker-item.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ================================================
+   공지사항 모달 (io 페이지용 — ilji와 동일 스타일)
+   ================================================ */
+.f3i-nmodal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(4px);
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.f3i-nmodal-overlay.show { display: flex; }
+.f3i-nmodal-box {
+    background: #fff;
+    width: 95%;
+    max-width: 850px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 75vh;
+    max-height: 85vh;
+    animation: f3iModalUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes f3iModalUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+.f3i-nmodal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f2f2f7;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fafafc;
+}
+.f3i-nmodal-title { font-size: 16px; font-weight: 700; color: #1d1d1f; }
+.f3i-nmodal-close { font-size: 22px; color: #8e8e93; cursor: pointer; transition: color 0.2s; user-select: none; }
+.f3i-nmodal-close:hover { color: #1d1d1f; }
+.f3i-nmodal-back-btn {
+    display: flex; align-items: center; gap: 4px;
+    background: #e8f4fd; color: #007AFF; border: none;
+    padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.f3i-nmodal-body { padding: 20px; overflow-y: auto; font-size: 14px; line-height: 1.6; color: #333; height: 100%; }
+.f3i-nmodal-footer-info {
+    background: #fff3cd; color: #856404; font-size: 11px;
+    padding: 8px 20px; font-weight: 600; text-align: center; border-top: 1px solid #ffeeba;
+}
+
+/* 공지 목록 아이템 */
+.f3i-nlist-item {
+    padding: 12px 14px;
+    border-bottom: 1px solid #f2f2f7;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 600;
+    color: #3a3a3c;
+    transition: background 0.2s;
+}
+.f3i-nlist-item:hover { background: #f5f5f7; color: #007AFF; }
+.f3i-nlist-item .arrow { color: #c7c7cc; font-size: 18px; }
+
+/* 공지 상세 */
+.f3i-ndetail-content { width: 100%; min-height: 120px; }
+.f3i-ndetail-content img { max-width: 100%; height: auto; border-radius: 8px; margin-top: 10px; display: block; }
+.f3i-ndetail-content a { color: #007AFF; text-decoration: underline; }
+
+/* 마스터 에디터 모드 */
+.gf3-wrapper.master-mode-active .f3i-nedit-target {
+    border: 2px dashed #ff9500 !important;
+    background: #fffcf0;
+    padding: 8px;
+    border-radius: 6px;
+    outline: none;
+}
+
+/* 공지 에디터 액션 버튼 */
+.f3i-nedit-actions {
+    display: flex; gap: 10px; margin-top: 16px;
+    justify-content: flex-end; padding-top: 12px;
+    border-top: 1px solid #f2f2f7;
+}
+.f3i-nbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: none; padding: 8px 16px; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.f3i-nbtn-primary { background: #007AFF; color: #fff; }
+.f3i-nbtn-primary:hover { background: #0056b3; }
+.f3i-nbtn-secondary { background: #f2f2f7; color: #1d1d1f; }
+.f3i-nbtn-secondary:hover { background: #e5e5ea; }
+.f3i-ndelete-btn {
+    color: #ff3b30; cursor: pointer; font-size: 20px !important;
+    display: flex; align-items: center; justify-content: center;
+    padding: 4px; border-radius: 6px;
+    transition: background-color 0.2s, transform 0.1s;
+}
+.f3i-ndelete-btn:hover { background-color: #ffe5e5; transform: scale(1.1); }
+.f3i-nadd-wrap {
+    padding: 16px 20px; border-top: 1px solid #f2f2f7;
+    background: #fafafc; display: flex; justify-content: center;
+}
+.f3i-nbtn-add { background: #34c759; color: #fff; width: 100%; justify-content: center; }
+.f3i-nbtn-add:hover { background: #28a745; }

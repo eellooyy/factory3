@@ -45,6 +45,7 @@ window.Factory3Io = window.Factory3Io || {};
                     }
                 },
                 onSave: handleSave,
+                onExportExcel: exportToPDF,
             });
 
             // 헤더 액션 컨트롤러 제어
@@ -376,6 +377,82 @@ window.Factory3Io = window.Factory3Io || {};
                 }, 1000);
             }
         }
+    }
+
+    /* ─────────────────────────────────────────
+       PDF 저장: 현재 화면 전체를 캡처하여 PDF로 내보내기
+     ───────────────────────────────────────── */
+    function exportToPDF() {
+        if (!window.html2canvas || !window.jspdf) {
+            alert("PDF 모듈을 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.");
+            return;
+        }
+
+        const headerApi = Factory3Io.state.headerApi;
+        const pdfBtn = headerApi ? headerApi.elements.excelBtn : null;
+        if (!pdfBtn) return;
+
+        const btnInner = pdfBtn.innerHTML;
+        pdfBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px; margin-right: 4px;">hourglass_empty</span>처리중...';
+        pdfBtn.disabled = true;
+
+        // PDF 저장 시 제외할 버튼류 (오늘/수정/저장/PDF 버튼 자체)
+        const todayBtn = headerApi ? headerApi.elements.todayBtn : null;
+        const editBtn  = headerApi ? headerApi.elements.editBtn  : null;
+        const saveBtn  = headerApi ? headerApi.elements.saveBtn  : null;
+        const hideTargets = [todayBtn, editBtn, saveBtn, pdfBtn].filter(Boolean);
+        const prevDisplay = hideTargets.map(el => el.style.display);
+        hideTargets.forEach(el => { el.style.display = 'none'; });
+
+        const restore = () => {
+            hideTargets.forEach((el, i) => { el.style.display = prevDisplay[i]; });
+            pdfBtn.innerHTML = btnInner;
+            pdfBtn.disabled = false;
+        };
+
+        // 저장 대상: 헤더 포함 전체 페이지 body
+        const captureTarget = document.body;
+        const currentDate = headerApi ? headerApi.getCurrentDate() : Utils.todayStr();
+
+        setTimeout(() => {
+            const pageWidthMm  = 297;   // A4 가로(landscape)
+            const pageHeightMm = 210;
+
+            html2canvas(captureTarget, {
+                scale: 1.5,
+                useCORS: true,
+                backgroundColor: '#f4f4f8',
+                windowWidth: document.documentElement.scrollWidth,
+                windowHeight: document.documentElement.scrollHeight,
+                scrollX: 0,
+                scrollY: 0
+            }).then(canvas => {
+                restore();
+
+                const { jsPDF } = window.jspdf;
+                const imgData = canvas.toDataURL('image/png');
+
+                const canvasW = canvas.width;
+                const canvasH = canvas.height;
+
+                // 캔버스 비율에 맞게 PDF 페이지 크기 동적 계산
+                const pxToMm = 25.4 / 96;
+                const docW = canvasW / 1.5 * pxToMm;
+                const docH = canvasH / 1.5 * pxToMm;
+
+                const pdf = new jsPDF({
+                    orientation: docW >= docH ? 'landscape' : 'portrait',
+                    unit: 'mm',
+                    format: [docW, docH]
+                });
+
+                pdf.addImage(imgData, 'PNG', 0, 0, docW, docH);
+                pdf.save(`3공장_재고종합_${currentDate}.pdf`);
+            }).catch(err => {
+                restore();
+                alert("PDF 생성 중 오류가 발생했습니다: " + err.message);
+            });
+        }, 100);
     }
 
     function onEditModeEnter() {
