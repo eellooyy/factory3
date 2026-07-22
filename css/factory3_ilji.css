@@ -49,7 +49,7 @@
     color: #1d1d1f;
 }
 
-/* [추가] 헤더 중간 공지사항 롤링 바 스타일 */
+/* 상단 공지사항 롤링 바 스타일 */
 .f3i-notice-ticker {
     flex: 1;
     margin: 0 24px;
@@ -145,6 +145,51 @@
 /* 액션 버튼 */
 .f3i-action-btn { display: flex; align-items: center; border: none; padding: 6px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
 
+/* 완롤 타이틀 박스 및 1차 집계 + 버튼 UI */
+.f3i-wan-title-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    position: relative;
+    width: 100%;
+}
+
+.f3i-add-mid-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: #ff3b30;
+    color: #ffffff;
+    border: none;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(255, 59, 48, 0.4);
+    transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.f3i-add-mid-btn:hover {
+    background-color: #d70015;
+    transform: scale(1.15);
+}
+
+.f3i-wrapper.edit-mode .f3i-add-mid-btn {
+    display: inline-flex !important;
+}
+
+.f3i-mid-row {
+    display: none;
+}
+
+.f3i-mid-row.show {
+    display: table-row !important;
+}
+
 /* 메인 테이블 레이아웃 구조 */
 .f3i-layout { display: flex; align-items: flex-start; gap: 16px; width: 100%; }
 .f3i-main-table-box { flex: 1 1 0; min-width: 0; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); border: 1px solid #e5e5ea; }
@@ -205,7 +250,7 @@
     100% { transform: rotate(0.5deg); }
 }
 
-/* [추가] 공지사항 모달 전용 레이아웃 CSS 스타일 */
+/* 공지사항 모달 전용 레이아웃 CSS 스타일 */
 .f3i-nmodal-overlay {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
@@ -220,13 +265,13 @@
 .f3i-nmodal-box {
     background: #fff;
     width: 95%;
-    max-width: 850px; /*기존 550px에서 더 확장*/
+    max-width: 850px;
     border-radius: 16px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    height: 75vh; /*시원한 스크롤 환경을 위한 높이 확보*/
+    height: 75vh;
     max-height: 85vh;
     animation: f3iModalUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -285,7 +330,7 @@
     padding: 8px 20px; font-weight: 600; text-align: center; border-top: 1px solid #ffeeba;
 }
 
-/* [추가] 모달 내 공지사항 개별 조작 에디터 영역 전용 버튼 패키지 */
+/* 모달 내 공지사항 개별 조작 에디터 영역 전용 버튼 패키지 */
 .f3i-nedit-actions {
     display: flex;
     gap: 10px;
@@ -321,7 +366,7 @@
     background: #e5e5ea;
 }
 
-/* [추가] 공지사항 추가 및 삭제 조작 UI 전용 스타일 */
+/* 공지사항 추가 및 삭제 조작 UI 전용 스타일 */
 .f3i-ndelete-btn {
     color: #ff3b30;
     cursor: pointer;

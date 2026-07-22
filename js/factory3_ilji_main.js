@@ -20,8 +20,21 @@
 
             App.bindInputFormatters();
             App.bindKeyboardNavigation();
+            
             if (typeof App.bindSwapFeature === 'function') {
                 App.bindSwapFeature();
+            }
+
+            // 1차 집계 + 버튼 이벤트 바인딩
+            const addMidBtn = document.getElementById('f3iAddMidBtn');
+            if (addMidBtn) {
+                addMidBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const visible = App.isMidRowsVisible();
+                    App.setMidRowsVisibility(!visible);
+                    App.calculateAutoFields();
+                });
             }
             
             // 초기 로드 시점 데이터 조회 실행

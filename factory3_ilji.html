@@ -43,7 +43,7 @@
             </div>
         </div>
 
-        <!-- [추가] 제목과 날짜 사이의 한줄 롤링 공지사항 바 -->
+        <!-- 제목과 날짜 사이의 한줄 롤링 공지사항 바 -->
         <div class="f3i-notice-ticker" id="f3iNoticeTicker" title="클릭하시면 전체 공지를 확인하실 수 있습니다.">
             <div class="f3i-ticker-wrapper" id="f3iTickerWrapper">
                 <!-- 자바스크립트에서 공지 목록을 실시간 렌더링합니다 -->
@@ -101,7 +101,6 @@
                     <tr class="border-bottom-thick">
                         <th class="f3i-th row-title border-right-thick" style="position: relative; padding: 4px 0;">
                             <div>사용 전 잔량</div>
-                            <button type="button" id="f3iSwapBtn" class="f3i-swap-btn" style="display: none; margin-top: 4px;">위치 변경</button>
                         </th>
                         <td class="f3i-td editable"><input type="text" class="f3i-input target-calc" data-col="B" data-row="1" readonly></td>
                         <td class="f3i-td editable"><input type="text" class="f3i-input target-calc" data-col="C" data-row="1" readonly></td>
@@ -113,7 +112,12 @@
                     </tr>
                     
                     <tr>
-                        <th class="f3i-th row-title border-right-thick" rowspan="6">완 롤</th>
+                        <th class="f3i-th row-title border-right-thick" rowspan="6">
+                            <div class="f3i-wan-title-box">
+                                <span>완 롤</span>
+                                <button type="button" id="f3iAddMidBtn" class="f3i-add-mid-btn" title="1차 집계 추가">+</button>
+                            </div>
+                        </th>
                         <td class="f3i-td editable"><input type="text" class="f3i-input target-calc" data-col="B" data-row="2" readonly></td>
                         <td class="f3i-td editable"><input type="text" class="f3i-input target-calc" data-col="C" data-row="2" readonly></td>
                         <td class="f3i-td editable"><input type="text" class="f3i-input target-calc" data-col="D" data-row="2" readonly></td>
@@ -173,6 +177,32 @@
                         <td class="f3i-td editable"><input type="text" class="f3i-input target-calc" data-col="E" data-row="7" readonly></td>
                         <td class="f3i-td editable"><input type="text" class="f3i-input target-calc" data-col="F" data-row="7" readonly></td>
                         <td class="f3i-td editable border-right-thick"><input type="text" class="f3i-input target-calc" data-col="G" data-row="7" readonly></td>
+                        <td class="f3i-td special-cell" colspan="2"></td>
+                    </tr>
+
+                    <!-- 동적 1차 집계 행 영역 -->
+                    <tr class="f3i-mid-row border-top-thick" id="f3iMidUsageRow">
+                        <th class="f3i-th row-title calc-row border-right-thick">1차 사용량</th>
+                        <td class="f3i-td readonly"><input type="text" class="f3i-input fw-bold mid-calc" data-col="B" data-type="mid_usage" readonly></td>
+                        <td class="f3i-td readonly"><input type="text" class="f3i-input fw-bold mid-calc" data-col="C" data-type="mid_usage" readonly></td>
+                        <td class="f3i-td readonly"><input type="text" class="f3i-input fw-bold mid-calc" data-col="D" data-type="mid_usage" readonly></td>
+                        <td class="f3i-td readonly"><input type="text" class="f3i-input fw-bold mid-calc" data-col="E" data-type="mid_usage" readonly></td>
+                        <td class="f3i-td readonly"><input type="text" class="f3i-input fw-bold mid-calc" data-col="F" data-type="mid_usage" readonly></td>
+                        <td class="f3i-td readonly border-right-thick"><input type="text" class="f3i-input fw-bold mid-calc" data-col="G" data-type="mid_usage" readonly></td>
+                        <td class="f3i-td special-cell" colspan="2"></td>
+                    </tr>
+
+                    <tr class="f3i-mid-row" id="f3iMidBalRow">
+                        <th class="f3i-th row-title border-right-thick" style="position: relative; padding: 4px 0;">
+                            <div>1차 사용 후 잔량</div>
+                            <button type="button" id="f3iSwapBtn" class="f3i-swap-btn" style="display: none; margin-top: 4px;">위치 변경</button>
+                        </th>
+                        <td class="f3i-td editable"><input type="text" class="f3i-input target-calc mid-calc" data-col="B" data-type="mid_bal" readonly></td>
+                        <td class="f3i-td editable"><input type="text" class="f3i-input target-calc mid-calc" data-col="C" data-type="mid_bal" readonly></td>
+                        <td class="f3i-td editable"><input type="text" class="f3i-input target-calc mid-calc" data-col="D" data-type="mid_bal" readonly></td>
+                        <td class="f3i-td editable"><input type="text" class="f3i-input target-calc mid-calc" data-col="E" data-type="mid_bal" readonly></td>
+                        <td class="f3i-td editable"><input type="text" class="f3i-input target-calc mid-calc" data-col="F" data-type="mid_bal" readonly></td>
+                        <td class="f3i-td editable border-right-thick"><input type="text" class="f3i-input target-calc mid-calc" data-col="G" data-type="mid_bal" readonly></td>
                         <td class="f3i-td special-cell" colspan="2"></td>
                     </tr>
 
@@ -258,7 +288,7 @@
     </div>
 </div>
 
-<!-- [추가] 공지사항 상세 조회/수정용 통합형 모달창 구조 -->
+<!-- 공지사항 상세 조회/수정용 통합형 모달창 구조 -->
 <div id="f3iNoticeModal" class="f3i-nmodal-overlay">
     <div class="f3i-nmodal-box">
         <div class="f3i-nmodal-header">

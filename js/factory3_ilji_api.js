@@ -20,12 +20,21 @@
 
             if (error) { console.error("Supabase 로드 에러:", error); return; }
 
-            document.querySelectorAll('.f3i-input').forEach(input => input.value = "");
+            document.querySelectorAll('.f3i-input').forEach(input => {
+                input.value = "";
+                delete input.dataset.fixedUsage;
+            });
+            
             const loadedStartBalCols = new Set(); 
             App.state.prevWanA = 0; App.state.prevWanD = 0;
+            let hasMidData = false;
 
             if (data && data.length > 0) {
                 data.forEach(item => {
+                    if (item.item_type === 'mid_usage_1' || item.item_type === 'mid_bal_1') {
+                        if (item.value && Number(item.value) > 0) hasMidData = true;
+                    }
+
                     const typeTokens = item.item_type.split('_');
                     const r = typeTokens[typeTokens.length - 1]; 
                     const baseType = item.item_type.replace(`_${r}`, ''); 
@@ -56,6 +65,15 @@
                     } else if (item.item_type === 'stat_total_usage') {
                         const el = document.getElementById('statTotalUsage');
                         if (el) el.value = val;
+                    } else if (item.item_type === 'mid_usage_1') {
+                        const el = document.querySelector(`.f3i-input[data-col="${c}"][data-type="mid_usage"]`);
+                        if (el) {
+                            el.value = val;
+                            if (valNum !== 0) el.dataset.fixedUsage = valNum;
+                        }
+                    } else if (item.item_type === 'mid_bal_1') {
+                        const el = document.querySelector(`.f3i-input[data-col="${c}"][data-type="mid_bal"]`);
+                        if (el) el.value = val;
                     } else {
                         const el = document.querySelector(`.f3i-input[data-row="${r}"][data-col="${c}"]`);
                         if (el) el.value = val;
@@ -66,6 +84,11 @@
                         }
                     }
                 });
+            }
+
+            // 1차 집계 데이터 유무에 따라 행 토글
+            if (typeof App.setMidRowsVisibility === 'function') {
+                App.setMidRowsVisibility(hasMidData);
             }
             
             const cols = ['B', 'C', 'D', 'E', 'F', 'G'];
@@ -104,6 +127,8 @@
         const cols = ['B', 'C', 'D', 'E', 'F', 'G'];
         const extractVal = (el) => el ? el.value.replace(/,/g, '').replace(/kg/g, '').replace(/R\/L/g, '').trim() : "";
 
+        const isMidVisible = App.isMidRowsVisible ? App.isMidRowsVisible() : false;
+
         cols.forEach(col => {
             const startEl = document.querySelector(`.f3i-input[data-row="1"][data-col="${col}"]`);
             const memoEl = document.querySelector(`.f3i-input[data-row="1"][data-col="H"]`);
@@ -112,6 +137,13 @@
             for (let r = 2; r <= 7; r++) {
                 const wanEl = document.querySelector(`.f3i-input[data-row="${r}"][data-col="${col}"]`);
                 rawPayloadData.push({ item_type: `wan_roll_${r}`, col_id: col, value: extractVal(wanEl), memo: "" });
+            }
+
+            if (isMidVisible) {
+                const midUsageEl = document.querySelector(`.f3i-input[data-col="${col}"][data-type="mid_usage"]`);
+                const midBalEl = document.querySelector(`.f3i-input[data-col="${col}"][data-type="mid_bal"]`);
+                rawPayloadData.push({ item_type: 'mid_usage_1', col_id: col, value: extractVal(midUsageEl), memo: "" });
+                rawPayloadData.push({ item_type: 'mid_bal_1', col_id: col, value: extractVal(midBalEl), memo: "" });
             }
 
             const endEl = document.querySelector(`.f3i-input[data-row="10"][data-col="${col}"]`);
