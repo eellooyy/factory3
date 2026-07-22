@@ -366,7 +366,7 @@
         });
     };
 
-    // PDF 출력 내보내기 (현재 화면 레이아웃을 그대로 캡처하여 PDF로 저장)
+    // PDF 출력 내보내기 (경량화 압축 적용)
     App.exportToPDF = function() {
         if (!window.html2canvas || !window.jspdf) {
             alert("PDF 모듈을 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.");
@@ -381,7 +381,7 @@
         const wrapper = App.headerApi.elements.wrapper;
         const currentDate = App.headerApi.getCurrentDate();
 
-        // PDF에는 불필요한 조작 버튼들(오늘/수정/저장/PDF 저장 버튼 자체)을 캡처 직전에만 숨김
+        // PDF에는 불필요한 조작 버튼들을 캡처 직전에만 숨김
         const todayBtn = App.headerApi.elements.todayBtn;
         const editBtn = App.headerApi.elements.editBtn;
         const saveBtn = App.headerApi.elements.saveBtn;
@@ -402,23 +402,27 @@
             const pageWidthMm = rect.width * pxToMm;
             const pageHeightMm = rect.height * pxToMm;
 
+            // scale을 1.5로 최적화하여 픽셀 용량 절감
             html2canvas(wrapper, {
-                scale: 2,
+                scale: 1.5,
                 useCORS: true,
                 backgroundColor: '#f5f5f7'
             }).then(canvas => {
                 restore();
 
                 const { jsPDF } = window.jspdf;
-                const imgData = canvas.toDataURL('image/png');
+                // PNG 대신 JPEG 사용 및 0.75 퀄리티 압축 지정
+                const imgData = canvas.toDataURL('image/jpeg', 0.75);
 
                 const pdf = new jsPDF({
                     orientation: pageWidthMm >= pageHeightMm ? 'landscape' : 'portrait',
                     unit: 'mm',
-                    format: [pageWidthMm, pageHeightMm]
+                    format: [pageWidthMm, pageHeightMm],
+                    compress: true // PDF 내부 압축 활성화
                 });
 
-                pdf.addImage(imgData, 'PNG', 0, 0, pageWidthMm, pageHeightMm);
+                // JPEG 포맷 및 FAST 압축 옵션 적용
+                pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, pageHeightMm, undefined, 'FAST');
                 pdf.save(`3공장_급지일지_${currentDate}.pdf`);
             }).catch(err => {
                 restore();
