@@ -264,14 +264,8 @@
 
         const wanA = App.utils.parseNum(document.getElementById('sideWanA')?.value);
         const wanD = App.utils.parseNum(document.getElementById('sideWanD')?.value);
-        
-        // 핀아웃 잔량 (A, D) 값 반영
-        const pinoutA = App.utils.parseNum(document.getElementById('sidePinoutA')?.value);
-        const pinoutD = App.utils.parseNum(document.getElementById('sidePinoutD')?.value);
-
-        // 급지 재고 = 사용후잔량 + 완롤잔량(kg) + 핀아웃잔량(kg)
-        const geupD = endBalD + (wanD * App.FACTOR_788) + pinoutD;
-        const geupA = endBalA + (wanA * App.FACTOR_1576) + pinoutA;
+        const geupD = endBalD + (wanD * App.FACTOR_788);
+        const geupA = endBalA + (wanA * App.FACTOR_1576);
 
         const elGeupA = document.getElementById('sideGeupA');
         const elGeupD = document.getElementById('sideGeupD');
@@ -293,7 +287,7 @@
 
     // 포맷 변환기 바인딩
     App.bindInputFormatters = function() {
-        App.headerApi.elements.wrapper.querySelectorAll('.target-calc, #sideWanA, #sideWanD, #sidePinoutA, #sidePinoutD, #statTotalUsage').forEach(input => {
+        App.headerApi.elements.wrapper.querySelectorAll('.target-calc, #sideWanA, #sideWanD, #statTotalUsage').forEach(input => {
             input.addEventListener('focus', function() {
                 if(this.readOnly) return;
                 let v = App.utils.parseNum(this.value);
@@ -317,7 +311,7 @@
                 if (v === 0) {
                     this.value = "";
                 } else {
-                    if (this.id === 'statTotalUsage' || this.id === 'sidePinoutA' || this.id === 'sidePinoutD') {
+                    if (this.id === 'statTotalUsage') {
                         this.value = v.toLocaleString() + " kg";
                     } else if (this.id === 'sideWanA' || this.id === 'sideWanD') {
                         this.value = v.toLocaleString() + " R/L";
