@@ -25,6 +25,12 @@
                 delete input.dataset.fixedUsage;
             });
 
+            document.querySelectorAll('.pinout-input').forEach(input => {
+                input.value = "";
+                delete input.dataset.pinoutCarried;
+                delete input.dataset.userTouched;
+            });
+
             // 날짜 변경 시 핀아웃 상세 입력 영역은 접어두고,
             // 사이드 핀아웃 잔량 박스/적층 상태는 (초기화된) 값 기준으로 재계산
             const pinoutSection = document.getElementById('f3iPinoutSection');
@@ -32,6 +38,7 @@
             if (typeof App.calculatePinoutBalance === 'function') App.calculatePinoutBalance();
             
             const loadedStartBalCols = new Set(); 
+            const loadedPinoutBeforeCols = new Set();
             App.state.prevWanA = 0; App.state.prevWanD = 0;
             let hasMid1Data = false;
             let hasMid2Data = false;
@@ -57,6 +64,12 @@
                             val = valNum.toLocaleString() + " kg";
                         } else if (item.item_type.startsWith('side_wan')) {
                             val = valNum.toLocaleString() + " R/L";
+                        } else if (item.item_type === 'pinout_before_1') {
+                            // 사용자가 직접 입력한 사용 전 잔량: 20 미만은 롤, 이상은 kg
+                            val = valNum >= 20 ? valNum.toLocaleString() + " kg" : valNum.toLocaleString() + " R/L";
+                        } else if (item.item_type === 'pinout_before_carry_1' || item.item_type === 'pinout_after_1') {
+                            // 전날 이월된 사용 전 잔량 / 사용 후 잔량은 항상 kg
+                            val = valNum.toLocaleString() + " kg";
                         } else {
                             const rInt = parseInt(r, 10);
                             if (rInt >= 2 && rInt <= 7) {
@@ -75,6 +88,20 @@
                     } else if (item.item_type === 'stat_total_usage') {
                         const el = document.getElementById('statTotalUsage');
                         if (el) el.value = val;
+                    } else if (item.item_type === 'pinout_before_1' || item.item_type === 'pinout_before_carry_1') {
+                        const el = document.querySelector(`.pinout-input[data-pin-row="1"][data-col="${c}"]`);
+                        if (el) {
+                            el.value = val;
+                            if (item.item_type === 'pinout_before_carry_1') el.dataset.pinoutCarried = '1';
+                            else delete el.dataset.pinoutCarried;
+                        }
+                        loadedPinoutBeforeCols.add(c);
+                    } else if (item.item_type === 'pinout_after_1') {
+                        const el = document.querySelector(`.pinout-input[data-pin-row="3"][data-col="${c}"]`);
+                        if (el) {
+                            el.value = val;
+                            el.dataset.userTouched = '1';
+                        }
                     } else if (item.item_type === 'mid_usage_1' || item.item_type === 'mid_usage') {
                         const el = document.querySelector(`.f3i-input[data-col="${c}"][data-type="mid_usage_1"]`) || document.querySelector(`.f3i-input[data-col="${c}"][data-type="mid_usage"]`);
                         if (el) {
@@ -132,8 +159,23 @@
                         if (item.col_id === 'A') App.state.prevWanA = item.value ? Number(item.value) : 0;
                         if (item.col_id === 'D') App.state.prevWanD = item.value ? Number(item.value) : 0;
                     }
+                    // 전날 핀아웃 "사용 후 잔량"이 남아있고, 오늘 자체적으로 저장된 사용 전 잔량이 없다면
+                    // 그 잔량을 오늘의 사용 전 잔량으로 그대로 이월시킨다. (항상 kg, 롤 환산 대상 아님)
+                    if (item.item_type === 'pinout_after_1' && !loadedPinoutBeforeCols.has(item.col_id)) {
+                        const valNum = item.value ? Number(item.value) : 0;
+                        if (valNum !== 0) {
+                            const el = document.querySelector(`.pinout-input[data-pin-row="1"][data-col="${item.col_id}"]`);
+                            if (el) {
+                                el.value = valNum.toLocaleString() + " kg";
+                                el.dataset.pinoutCarried = '1';
+                            }
+                            loadedPinoutBeforeCols.add(item.col_id);
+                        }
+                    }
                 });
             }
+
+            if (typeof App.calculatePinoutBalance === 'function') App.calculatePinoutBalance();
             App.calculateAutoFields();
         } catch (err) {
             console.error("시스템 에러:", err);
@@ -175,6 +217,19 @@
 
             const endEl = document.querySelector(`.f3i-input[data-row="10"][data-col="${col}"]`);
             rawPayloadData.push({ item_type: 'end_bal_10', col_id: col, value: extractVal(endEl), memo: "" });
+
+            // 핀아웃 사용 전 잔량 / 사용 후 잔량 저장
+            // - 전날 이월된 값(dataset.pinoutCarried='1')은 'pinout_before_carry_1'로 저장해
+            //   다음날 로드 시에도 롤 환산/급지출고 가산 대상이 아님을 구분할 수 있게 한다.
+            // - 사용자가 직접 입력한 값은 'pinout_before_1'로 저장 (20 미만은 롤, 이상은 kg로 재해석됨).
+            const pinoutBeforeEl = document.querySelector(`.pinout-input[data-pin-row="1"][data-col="${col}"]`);
+            const pinoutAfterEl = document.querySelector(`.pinout-input[data-pin-row="3"][data-col="${col}"]`);
+            const isPinoutCarried = pinoutBeforeEl && pinoutBeforeEl.dataset.pinoutCarried === '1';
+            rawPayloadData.push({
+                item_type: isPinoutCarried ? 'pinout_before_carry_1' : 'pinout_before_1',
+                col_id: col, value: extractVal(pinoutBeforeEl), memo: ""
+            });
+            rawPayloadData.push({ item_type: 'pinout_after_1', col_id: col, value: extractVal(pinoutAfterEl), memo: "" });
         });
 
         rawPayloadData.push({ item_type: 'side_wan_1', col_id: 'A', value: extractVal(document.getElementById('sideWanA')), memo: "" });

@@ -228,14 +228,20 @@
             else endBalA += endBal;
 
             let usage = 0;
+            let hasUsage = false;
             const usageInput = document.querySelector(`.f3i-input[data-col="${col}"][data-row="9"]`);
+            if (beforeSum > 0 && endBal > 0) {
+                 usage = beforeSum - endBal;
+                 hasUsage = true;
+            }
+            // 핀아웃에서 발생한 사용량(계산된 값)을 해당 열의 사용량에 더해준다.
+            const pinoutUsageExtra = (App.state.pinoutUsageByCol && App.state.pinoutUsageByCol[col]) || 0;
+            if (pinoutUsageExtra !== 0) {
+                usage += pinoutUsageExtra;
+                hasUsage = true;
+            }
             if (usageInput) {
-                if (beforeSum > 0 && endBal > 0) {
-                     usage = beforeSum - endBal;
-                     usageInput.value = usage !== 0 ? usage.toLocaleString() : "0";
-                } else {
-                     usageInput.value = ""; 
-                }
+                usageInput.value = hasUsage ? (usage !== 0 ? usage.toLocaleString() : "0") : "";
             }
 
             if (col === 'B') usageD = usage;
@@ -263,8 +269,12 @@
 
         const wanA = App.utils.parseNum(document.getElementById('sideWanA')?.value);
         const wanD = App.utils.parseNum(document.getElementById('sideWanD')?.value);
-        const geupD = endBalD + (wanD * App.FACTOR_788);
-        const geupA = endBalA + (wanA * App.FACTOR_1576);
+        // 핀아웃 잔량(발생 후 아직 남아있는 분)도 일단 급지 재고에 포함해 반영한다.
+        // (추후 처리 방식이 바뀌면 이 부분만 조정하면 됨)
+        const pinoutBalD = (App.state.pinoutBalance && App.state.pinoutBalance.D) || 0;
+        const pinoutBalA = (App.state.pinoutBalance && App.state.pinoutBalance.A) || 0;
+        const geupD = endBalD + (wanD * App.FACTOR_788) + pinoutBalD;
+        const geupA = endBalA + (wanA * App.FACTOR_1576) + pinoutBalA;
 
         const elGeupA = document.getElementById('sideGeupA');
         const elGeupD = document.getElementById('sideGeupD');
@@ -272,10 +282,21 @@
         if(elGeupA) elGeupA.value = geupA > 0 ? geupA.toLocaleString() + " kg" : "0 kg";
         if(elGeupD) elGeupD.value = geupD > 0 ? geupD.toLocaleString() + " kg" : "0 kg";
 
+        // 핀아웃 발생 시 사용 전 잔량이 20 미만의 롤 단위로 입력되면 신규 출고로 간주하여
+        // 급지 출고 값에 그대로 더해준다. (B열 = 788 계열/D, C~G열 = 1576 계열/A)
+        let pinoutRollD = 0; let pinoutRollA = 0;
+        if (App.state.pinoutRollByCol) {
+            Object.keys(App.state.pinoutRollByCol).forEach(col => {
+                const roll = App.state.pinoutRollByCol[col] || 0;
+                if (col === 'B') pinoutRollD += roll;
+                else pinoutRollA += roll;
+            });
+        }
+
         const rawChulgoA = App.state.prevWanA - (sumTodayRollA + wanA);
         const rawChulgoD = App.state.prevWanD - (sumTodayRollD + wanD);
-        const chulgoA = Math.abs(rawChulgoA);
-        const chulgoD = Math.abs(rawChulgoD);
+        const chulgoA = Math.abs(rawChulgoA) + pinoutRollA;
+        const chulgoD = Math.abs(rawChulgoD) + pinoutRollD;
 
         const elChulgoA = document.getElementById('sideChulgoA');
         const elChulgoD = document.getElementById('sideChulgoD');
@@ -303,11 +324,26 @@
                     const uInp = document.querySelector(`.f3i-input[data-col="${col}"][data-type="mid_usage_2"]`);
                     if (uInp) delete uInp.dataset.fixedUsage;
                 }
+                if (this.classList.contains('pinout-input')) {
+                    if (this.dataset.pinRow === '1') {
+                        // 사용자가 사용 전 잔량을 직접 수정하면, 전날 이월값이 아니라
+                        // 새로 입력한 값으로 취급한다 (롤/kg 판별 로직을 다시 적용).
+                        delete this.dataset.pinoutCarried;
+                    } else if (this.dataset.pinRow === '3') {
+                        // 사용 후 잔량을 사용자가 직접 다뤘음을 표시 (0으로 완전히 비워도
+                        // "아직 입력 안 한 상태"로 되돌아가 이월값이 다시 뜨는 것을 방지)
+                        this.dataset.userTouched = '1';
+                    }
+                }
             });
             input.addEventListener('blur', function() {
                 if(this.readOnly) return;
                 let v = App.utils.parseNum(this.value);
-                if (v === 0) {
+                if (v === 0 && this.classList.contains('pinout-input') && this.dataset.pinRow === '3') {
+                    // 핀아웃 "사용 후 잔량"은 0이어도 빈칸이 아니라 "완전 소진"을 의미하므로
+                    // 값을 지우지 않고 명시적으로 0 kg으로 표시한다.
+                    this.value = "0 kg";
+                } else if (v === 0) {
                     this.value = "";
                 } else {
                     if (this.id === 'statTotalUsage') {
@@ -315,7 +351,12 @@
                     } else if (this.id === 'sideWanA' || this.id === 'sideWanD') {
                         this.value = v.toLocaleString() + " R/L";
                     } else if (this.classList.contains('pinout-input')) {
-                        this.value = v >= 20 ? v.toLocaleString() + " kg" : v.toLocaleString() + " R/L";
+                        // 핀아웃 "사용 후 잔량"(pin-row 3)은 롤 단위 환산 없이 항상 kg으로 표시한다.
+                        if (this.dataset.pinRow === '3') {
+                            this.value = v.toLocaleString() + " kg";
+                        } else {
+                            this.value = v >= 20 ? v.toLocaleString() + " kg" : v.toLocaleString() + " R/L";
+                        }
                     } else {
                         const row = parseInt(this.dataset.row, 10);
                         if (row >= 2 && row <= 7) {
@@ -325,10 +366,12 @@
                         }
                     }
                 }
-                App.calculateAutoFields();
+                // 핀아웃 입력값이 바뀌면, 급지 출고/사용량 반영 계산이
+                // calculateAutoFields보다 먼저 최신 상태로 갱신되어야 한다.
                 if (this.classList.contains('pinout-input')) {
                     App.calculatePinoutBalance();
                 }
+                App.calculateAutoFields();
             });
         });
 
@@ -391,14 +434,29 @@
 
         ['B', 'C', 'D', 'E', 'F', 'G'].forEach(col => {
             const factor = (col === 'B') ? App.FACTOR_788 : App.FACTOR_1576;
-            const input = document.querySelector(`.pinout-input[data-pin-row="3"][data-col="${col}"]`);
-            const cellVal = App.utils.parseNum(input?.value);
+            const afterInput = document.querySelector(`.pinout-input[data-pin-row="3"][data-col="${col}"]`);
+            const beforeInput = document.querySelector(`.pinout-input[data-pin-row="1"][data-col="${col}"]`);
+
+            // 핀아웃 "사용 후 잔량"은 20 미만이어도 롤로 환산하지 않고 무조건 kg 그대로 취급한다.
+            const afterVal = App.utils.parseNum(afterInput?.value);
+            const afterTouched = afterInput && afterInput.dataset.userTouched === '1';
+
             let kgVal = 0;
-            if (cellVal >= 20) {
-                kgVal = cellVal;
-            } else {
-                kgVal = cellVal * factor;
+            if (afterVal > 0) {
+                // 사용 후 잔량이 입력되어 있으면 그 값을 그대로 잔량으로 사용
+                kgVal = afterVal;
+            } else if (!afterTouched) {
+                // 아직 사용 후 잔량을 입력하지 않은 상태(전날 이월 직후 등)라면,
+                // 사용 전 잔량(이월분 또는 신규 발생분)을 잠정 핀아웃 잔량으로 대신 표시한다.
+                const beforeRaw = App.utils.parseNum(beforeInput?.value);
+                const isCarried = beforeInput && beforeInput.dataset.pinoutCarried === '1';
+                if (beforeRaw > 0) {
+                    kgVal = (isCarried || beforeRaw >= 20) ? beforeRaw : beforeRaw * factor;
+                }
             }
+            // afterVal이 0이고 사용자가 사용 후 잔량을 직접 입력/터치했다면(완전 소진) kgVal은 0으로 유지되어
+            // 이 열에서는 잔량이 없는 것으로 처리된다.
+
             if (col === 'B') balD += kgVal;
             else balA += kgVal;
         });
@@ -407,6 +465,9 @@
         const elPinoutD = document.getElementById('sidePinoutD');
         if (elPinoutA) elPinoutA.value = balA > 0 ? balA.toLocaleString() + " kg" : "";
         if (elPinoutD) elPinoutD.value = balD > 0 ? balD.toLocaleString() + " kg" : "";
+
+        // 급지 재고 계산(calculateAutoFields)에서 핀아웃 잔량을 더해줄 수 있도록 상태에 저장
+        App.state.pinoutBalance = { A: balA, D: balD };
 
         const hasPinout = (balA + balD) > 0;
         App.updateSideLayerState(hasPinout);
@@ -418,28 +479,56 @@
     };
 
     // 핀아웃 "사용량" 행(2행) 자동 계산: 사용 전 잔량(1행) - 사용 후 잔량(3행)
-    // 788(B열)은 롤 단위일 때 571을 곱하고, R51~R55(C~G열)는 롤 단위일 때 1143을 곱해 무게(kg)로 환산한다.
-    // (입력값이 20 이상이면 이미 kg 단위로 입력된 것으로 간주해 그대로 사용)
+    // - 사용 전 잔량: 788(B열)은 롤 단위(20 미만)일 때 571을, R51~R55(C~G열)는 1143을 곱해 무게(kg)로 환산한다.
+    //   (입력값이 20 이상이면 이미 kg 단위로 입력된 것으로 간주해 그대로 사용)
+    //   단, 사용 전 잔량이 20 미만의 롤 단위로 "신규" 입력된 경우는 "신규 출고"가 발생한 것이므로,
+    //   해당 롤 수량을 App.state.pinoutRollByCol 에 기록해 급지 출고 값에 더해지도록 한다.
+    //   (전날 이월된 값 - dataset.pinoutCarried='1' - 은 이미 이전에 출고 처리된 실물이므로 롤 환산/출고 가산에서 제외)
+    // - 사용 후 잔량: 20 미만이어도 롤 환산 없이 항상 kg 값 그대로 사용한다.
+    // 계산된 열별 사용량은 App.state.pinoutUsageByCol 에 기록해, 해당 열의 본표 사용량(9행)에도 더해지도록 한다.
     App.calculatePinoutUsage = function() {
+        const pinoutUsageByCol = {};
+        const pinoutRollByCol = {};
+
         ['B', 'C', 'D', 'E', 'F', 'G'].forEach(col => {
             const factor = (col === 'B') ? App.FACTOR_788 : App.FACTOR_1576;
-            const toKg = (rawVal) => (rawVal >= 20 ? rawVal : rawVal * factor);
 
             const beforeInput = document.querySelector(`.pinout-input[data-pin-row="1"][data-col="${col}"]`);
             const afterInput = document.querySelector(`.pinout-input[data-pin-row="3"][data-col="${col}"]`);
             const usageInput = document.querySelector(`.pinout-input[data-pin-row="2"][data-col="${col}"]`);
-            if (!usageInput) return;
 
             const beforeRaw = App.utils.parseNum(beforeInput?.value);
-            const afterRaw = App.utils.parseNum(afterInput?.value);
+            const isCarried = beforeInput && beforeInput.dataset.pinoutCarried === '1';
+            // 사용 후 잔량은 무조건 kg 값으로 취급 (롤 환산 없음)
+            const afterKg = App.utils.parseNum(afterInput?.value);
+            // 사용자가 사용 후 잔량을 실제로 입력/터치했는지 여부 (0을 명시적으로 입력한 "완전 소진"도 포함)
+            const afterEntered = afterKg > 0 || (afterInput && afterInput.dataset.userTouched === '1');
 
-            if (beforeRaw > 0 && afterRaw > 0) {
-                const usageKg = toKg(beforeRaw) - toKg(afterRaw);
-                usageInput.value = usageKg.toLocaleString() + " kg";
-            } else {
-                usageInput.value = "";
+            let beforeKg = 0;
+            if (beforeRaw > 0) {
+                if (!isCarried && beforeRaw < 20) {
+                    // 20 미만 = 무게가 아닌 롤 단위의 신규 입력 → 신규 출고 발생
+                    pinoutRollByCol[col] = beforeRaw;
+                    beforeKg = beforeRaw * factor;
+                } else {
+                    // 20 이상으로 입력됐거나, 전날 이월된 값(항상 kg)인 경우
+                    beforeKg = beforeRaw;
+                }
+            }
+
+            if (usageInput) {
+                if (beforeRaw > 0 && afterEntered) {
+                    const usageKg = beforeKg - afterKg;
+                    usageInput.value = usageKg.toLocaleString() + " kg";
+                    pinoutUsageByCol[col] = usageKg;
+                } else {
+                    usageInput.value = "";
+                }
             }
         });
+
+        App.state.pinoutUsageByCol = pinoutUsageByCol;
+        App.state.pinoutRollByCol = pinoutRollByCol;
     };
 
     // 핀아웃 버튼 이벤트
