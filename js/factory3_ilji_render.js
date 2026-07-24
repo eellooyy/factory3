@@ -125,6 +125,10 @@
         }
 
         App.updateRightSideSummaryRows(App.midLevel);
+
+        // 1차/2차 집계 행이 늘거나 줄면 기본 테이블의 높이 자체가 바뀌므로,
+        // 3적층 모드인 경우 우측 패널 높이도 함께 재계산
+        if (typeof App.syncSidePanelHeight === 'function') App.syncSidePanelHeight();
     };
 
     App.isMidRowsVisible = function() {
@@ -310,6 +314,8 @@
                         this.value = v.toLocaleString() + " kg";
                     } else if (this.id === 'sideWanA' || this.id === 'sideWanD') {
                         this.value = v.toLocaleString() + " R/L";
+                    } else if (this.classList.contains('pinout-input')) {
+                        this.value = v >= 20 ? v.toLocaleString() + " kg" : v.toLocaleString() + " R/L";
                     } else {
                         const row = parseInt(this.dataset.row, 10);
                         if (row >= 2 && row <= 7) {
@@ -320,11 +326,120 @@
                     }
                 }
                 App.calculateAutoFields();
+                if (this.classList.contains('pinout-input')) {
+                    App.calculatePinoutBalance();
+                }
             });
         });
 
         // 핀아웃 발생 / 사용 동적 버튼 이벤트 연결
         App.bindPinoutEvents();
+    };
+
+    // 사이드 패널 적층 상태 갱신 (핀아웃 잔량 유무에 따라 3적층 / 4적층 전환)
+    App.updateSideLayerState = function(showPinoutBox) {
+        const sideBox = document.getElementById('f3iSidePinoutBox');
+        const sidePanel = document.getElementById('f3iSidePanel') || document.querySelector('.f3i-side-panel');
+
+        if (sideBox) sideBox.style.display = showPinoutBox ? '' : 'none';
+
+        if (sidePanel) {
+            if (showPinoutBox) {
+                // 핀아웃 잔량 존재 → 4적층 구조 (기존 자연 높이 유지)
+                sidePanel.classList.remove('f3i-side-fill');
+            } else {
+                // 핀아웃 잔량 없음 → 3적층 구조, 좌측 테이블 높이에 맞춰 균등 확장
+                sidePanel.classList.add('f3i-side-fill');
+            }
+        }
+
+        // 핀아웃 "상세 입력" 영역이 열려있는지 여부와 무관하게, 항상 기본 메인 테이블 높이만
+        // 기준으로 우측 패널 높이를 갱신한다 (핀아웃 발생/사용 버튼 클릭으로 인한 흔들림 방지)
+        App.syncSidePanelHeight();
+    };
+
+    // 우측 사이드 패널(3적층 모드) 높이를 좌측 "기본" 테이블 기준으로 고정 지정
+    // 핀아웃 상세 입력 영역(f3iPinoutSection)은 계산에서 제외하여,
+    // 그 영역을 열고 닫아도 우측 3적층 레이아웃의 높이가 흔들리지 않도록 함
+    App.syncSidePanelHeight = function() {
+        const sidePanel = document.getElementById('f3iSidePanel') || document.querySelector('.f3i-side-panel');
+        if (!sidePanel) return;
+
+        if (!sidePanel.classList.contains('f3i-side-fill')) {
+            // 4적층(자연 높이) 모드에서는 인라인 높이 지정을 제거해 기존 동작을 유지
+            sidePanel.style.height = '';
+            return;
+        }
+
+        const mainBox = document.querySelector('.f3i-main-table-box');
+        const mainTable = mainBox ? mainBox.querySelector('table.f3i-table.border-outer') : null;
+        if (mainTable && mainBox) {
+            // 좌측 카드(.f3i-main-table-box)는 표 바깥에 자체 padding/border를 갖고 있으므로,
+            // 표 높이만으로 맞추면 카드 하단 여백만큼 우측 패널이 짧아져 아래쪽이 어긋난다.
+            // 표 높이 + 카드의 상하 padding/border를 모두 더해야 카드의 실제 바깥 높이와 정확히 일치한다.
+            const boxStyle = window.getComputedStyle(mainBox);
+            const extra = (parseFloat(boxStyle.paddingTop) || 0) + (parseFloat(boxStyle.paddingBottom) || 0)
+                        + (parseFloat(boxStyle.borderTopWidth) || 0) + (parseFloat(boxStyle.borderBottomWidth) || 0);
+            sidePanel.style.height = (mainTable.offsetHeight + extra) + 'px';
+        }
+    };
+
+    // 핀아웃 사용 후 잔량을 기준으로 핀아웃 잔량 사이드 박스 값과 표시 여부 계산
+    App.calculatePinoutBalance = function() {
+        let balD = 0; // col B (788mm 계열)
+        let balA = 0; // col C~G (1576mm 계열)
+
+        ['B', 'C', 'D', 'E', 'F', 'G'].forEach(col => {
+            const factor = (col === 'B') ? App.FACTOR_788 : App.FACTOR_1576;
+            const input = document.querySelector(`.pinout-input[data-pin-row="3"][data-col="${col}"]`);
+            const cellVal = App.utils.parseNum(input?.value);
+            let kgVal = 0;
+            if (cellVal >= 20) {
+                kgVal = cellVal;
+            } else {
+                kgVal = cellVal * factor;
+            }
+            if (col === 'B') balD += kgVal;
+            else balA += kgVal;
+        });
+
+        const elPinoutA = document.getElementById('sidePinoutA');
+        const elPinoutD = document.getElementById('sidePinoutD');
+        if (elPinoutA) elPinoutA.value = balA > 0 ? balA.toLocaleString() + " kg" : "";
+        if (elPinoutD) elPinoutD.value = balD > 0 ? balD.toLocaleString() + " kg" : "";
+
+        const hasPinout = (balA + balD) > 0;
+        App.updateSideLayerState(hasPinout);
+
+        // 사용 전 잔량 / 사용 후 잔량이 바뀔 때마다 사용량 행도 함께 재계산
+        App.calculatePinoutUsage();
+
+        return hasPinout;
+    };
+
+    // 핀아웃 "사용량" 행(2행) 자동 계산: 사용 전 잔량(1행) - 사용 후 잔량(3행)
+    // 788(B열)은 롤 단위일 때 571을 곱하고, R51~R55(C~G열)는 롤 단위일 때 1143을 곱해 무게(kg)로 환산한다.
+    // (입력값이 20 이상이면 이미 kg 단위로 입력된 것으로 간주해 그대로 사용)
+    App.calculatePinoutUsage = function() {
+        ['B', 'C', 'D', 'E', 'F', 'G'].forEach(col => {
+            const factor = (col === 'B') ? App.FACTOR_788 : App.FACTOR_1576;
+            const toKg = (rawVal) => (rawVal >= 20 ? rawVal : rawVal * factor);
+
+            const beforeInput = document.querySelector(`.pinout-input[data-pin-row="1"][data-col="${col}"]`);
+            const afterInput = document.querySelector(`.pinout-input[data-pin-row="3"][data-col="${col}"]`);
+            const usageInput = document.querySelector(`.pinout-input[data-pin-row="2"][data-col="${col}"]`);
+            if (!usageInput) return;
+
+            const beforeRaw = App.utils.parseNum(beforeInput?.value);
+            const afterRaw = App.utils.parseNum(afterInput?.value);
+
+            if (beforeRaw > 0 && afterRaw > 0) {
+                const usageKg = toKg(beforeRaw) - toKg(afterRaw);
+                usageInput.value = usageKg.toLocaleString() + " kg";
+            } else {
+                usageInput.value = "";
+            }
+        });
     };
 
     // 핀아웃 버튼 이벤트
@@ -361,7 +476,20 @@
         if (closeBtn) {
             closeBtn.addEventListener('click', function() {
                 if (section) section.style.display = 'none';
+                // 닫기는 입력 상세 영역만 접을 뿐, 사이드 잔량 요약 박스는
+                // 실제 핀아웃 잔량 값 유무에 따라 계속 표시/숨김이 결정됨
             });
+        }
+
+        // 초기 상태 계산: 저장된 핀아웃 잔량이 없으면 3적층 구조로 시작
+        App.calculatePinoutBalance();
+
+        // 창 크기 변경 시에도 기본 테이블 높이 기준으로 3적층 높이를 재계산
+        if (!App._sidePanelResizeBound) {
+            window.addEventListener('resize', function() {
+                if (typeof App.syncSidePanelHeight === 'function') App.syncSidePanelHeight();
+            });
+            App._sidePanelResizeBound = true;
         }
     };
 

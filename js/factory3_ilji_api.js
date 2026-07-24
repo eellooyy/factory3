@@ -24,6 +24,12 @@
                 input.value = "";
                 delete input.dataset.fixedUsage;
             });
+
+            // 날짜 변경 시 핀아웃 상세 입력 영역은 접어두고,
+            // 사이드 핀아웃 잔량 박스/적층 상태는 (초기화된) 값 기준으로 재계산
+            const pinoutSection = document.getElementById('f3iPinoutSection');
+            if (pinoutSection) pinoutSection.style.display = 'none';
+            if (typeof App.calculatePinoutBalance === 'function') App.calculatePinoutBalance();
             
             const loadedStartBalCols = new Set(); 
             App.state.prevWanA = 0; App.state.prevWanD = 0;
